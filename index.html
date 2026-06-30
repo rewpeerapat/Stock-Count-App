@@ -17,6 +17,9 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
         .spinner { border: 3px solid rgba(0,0,0,0.1); border-left-color: #e11d48; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* ซ่อน Scrollbar แต่อยู่ให้เลื่อนได้ */
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body>
@@ -105,7 +108,7 @@
         }
 
         // ==========================================
-        // หน้า Login / Register (เพิ่ม Dropdown แผนก)
+        // หน้า Login / Register
         // ==========================================
         function AuthScreen({ t, lang, setLang, setUser, fetchGAS }) {
             const [isReg, setIsReg] = useState(false);
@@ -121,7 +124,7 @@
                         if (isReg) { alert(res.message); setIsReg(false); } 
                         else { setUser(res.user); }
                     } else alert(res.message);
-                } catch (err) { alert("Network Error"); }
+                } catch (err) { alert("เกิดข้อผิดพลาดในการเชื่อมต่อ (Network Error)"); }
                 setLoading(false);
             };
 
@@ -142,7 +145,7 @@
                             {isReg && <input required placeholder={t.name} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500"
                                 value={form.name} onChange={e => setForm({...form, name: e.target.value})} />}
                             
-                            {/* Dropdown เลือกแผนก */}
+                            {/* Dropdown สำหรับสมัครสมาชิก */}
                             {isReg && 
                                 <select required className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500 bg-white"
                                     value={form.dept} onChange={e => setForm({...form, dept: e.target.value})}>
@@ -173,9 +176,10 @@
         }
 
         // ==========================================
-        // แดชบอร์ด พนักงานนับสต็อก (Staff)
+        // แดชบอร์ด พนักงานนับสต็อก (Staff) 
         // ==========================================
         function StaffPanel({ user, t, fetchGAS }) {
+            // (ใช้โค้ดเดิม ไม่มีการแก้ไขในส่วนนี้)
             const [tasks, setTasks] = useState([]);
             const [activeTask, setActiveTask] = useState(null);
             const [loading, setLoading] = useState(false);
@@ -214,7 +218,6 @@
                 setIsLookupLoading(false);
             };
 
-            // ระบบแสกนบาร์โค้ด
             useEffect(() => {
                 if(isScannerOpen) {
                     const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 150} }, false);
@@ -278,7 +281,6 @@
                             </button>
                         </div>
 
-                        {/* พื้นที่เปิดกล้อง */}
                         {isScannerOpen && <div id="reader" className="w-full mb-4 rounded overflow-hidden shadow"></div>}
 
                         {productDetail && (
@@ -331,14 +333,18 @@
         }
 
         // ==========================================
-        // แดชบอร์ด หัวหน้างาน (เพิ่มระบบ Upload Excel)
+        // แดชบอร์ด หัวหน้างาน (Admin / Supervisor)
         // ==========================================
         function SupervisorPanel({ user, t, fetchGAS }) {
             const [view, setView] = useState('tasks');
-            const [form, setForm] = useState({ dept: user.dept, article: '', aisle: '', bay: '' });
+            // FIX 1: ให้ค่า default เป็นค่าว่าง (สำหรับ Admin) เพื่อบังคับให้ผู้ใช้เลือก
+            const [form, setForm] = useState({ dept: user.role === 'Admin' ? '' : user.dept, article: '', aisle: '', bay: '' });
             const [tasks, setTasks] = useState([]);
             const [submissions, setSubmissions] = useState([]);
             const [loading, setLoading] = useState(false);
+            
+            // FIX 2: State สำหรับพรีวิวข้อมูล Excel ก่อนส่งมอบหมายงาน
+            const [previewTasks, setPreviewTasks] = useState(null);
 
             useEffect(() => { loadData(); }, [view]);
 
@@ -358,11 +364,15 @@
                 e.preventDefault();
                 setLoading(true);
                 const res = await fetchGAS({ action: 'createTask', ...form });
-                if(res.success) { alert(res.message); setForm({...form, article: '', aisle: '', bay: ''}); loadData(); }
+                if(res.success) { 
+                    alert(res.message); 
+                    setForm({...form, article: '', aisle: '', bay: ''}); // เก็บ dept ไว้เหมือนเดิม
+                    loadData(); 
+                }
                 setLoading(false);
             };
 
-            // ฟังก์ชันอ่านไฟล์ Excel และแปลงข้อมูลเพื่อแจกงานแบบกลุ่ม
+            // อัปเดต: อ่าน Excel แล้วนำไปแสดง Preview แทนการยิง API ทันที
             const handleExcelUpload = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -375,9 +385,7 @@
                         const firstSheet = workbook.SheetNames[0];
                         const excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: "" });
 
-                        // จัดรูปแบบข้อมูลให้อิงตามหัวคอลัมน์ Aisle, Bay, Dept, Article
                         const formattedTasks = excelRows.map(row => {
-                            // Helper ดึงข้อมูลแบบไม่สนใจตัวพิมพ์เล็ก/ใหญ่ หรือช่องว่าง
                             const getVal = (key) => {
                                 const foundKey = Object.keys(row).find(k => k.trim().toLowerCase() === key.toLowerCase());
                                 return foundKey ? row[foundKey] : '';
@@ -388,30 +396,37 @@
                                 dept: getVal('Dept'),
                                 article: getVal('Article')
                             };
-                        }).filter(t => String(t.article).trim() !== ''); // เอาเฉพาะบรรทัดที่มีรหัสสินค้า
+                        }).filter(t => String(t.article).trim() !== '');
 
                         if(formattedTasks.length === 0) {
                             alert("ไม่พบข้อมูลสินค้าในไฟล์ Excel หรือหัวคอลัมน์ไม่ตรง (ต้องการ: Aisle, Bay, Dept, Article)");
+                            e.target.value = null;
                             return;
                         }
 
-                        if(confirm(`พบข้อมูลแจกงานทั้งหมด ${formattedTasks.length} รายการ ต้องการอัปโหลดใช่หรือไม่?`)) {
-                            setLoading(true);
-                            const res = await fetchGAS({ action: 'createTasksBulk', tasks: formattedTasks });
-                            if(res.success) {
-                                alert(res.message);
-                                loadData(); // โหลดรายการงานใหม่
-                            } else {
-                                alert("เกิดข้อผิดพลาด: " + res.message);
-                            }
-                            setLoading(false);
-                        }
+                        // เปลี่ยนหน้าเป็นหน้าต่างพรีวิว
+                        setPreviewTasks(formattedTasks);
+
                     } catch(err) {
                         alert("ไฟล์ Excel ไม่ถูกต้อง หรือไม่สามารถอ่านได้");
                     }
-                    e.target.value = null; // reset input
+                    e.target.value = null; // reset input เพื่อให้สามารถเลือกไฟล์เดิมซ้ำได้ถ้ายกเลิก
                 };
                 reader.readAsBinaryString(file);
+            };
+
+            // ฟังก์ชันกดยืนยันจากหน้าพรีวิว (ยิง API จริง)
+            const confirmBulkUpload = async () => {
+                setLoading(true);
+                const res = await fetchGAS({ action: 'createTasksBulk', tasks: previewTasks });
+                if(res.success) {
+                    alert(res.message);
+                    setPreviewTasks(null); // เคลียร์หน้าต่างพรีวิว
+                    loadData(); // โหลดข้อมูลมาใหม่
+                } else {
+                    alert("เกิดข้อผิดพลาด: " + res.message);
+                }
+                setLoading(false);
             };
 
             const exportExcel = () => {
@@ -440,19 +455,32 @@
                         <button onClick={()=>setView('report')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${view==='report'?'bg-rose-600 text-white shadow-md':'bg-white text-gray-600 border'}`}>ดูรายงาน</button>
                     </div>
 
-                    {view === 'tasks' && (
+                    {/* ซ่อนหน้าจอมอบหมายงานปกติ หากอยู่ในโหมด Preview Excel */}
+                    {view === 'tasks' && !previewTasks && (
                         <div className="grid md:grid-cols-2 gap-6">
                             
                             {/* ฟอร์มสร้างงาน 1 รายการ */}
                             <div className="bg-white p-6 rounded-xl shadow-sm border">
-                                <h3 className="font-bold text-lg mb-4">{t.createTask} (สร้างทีละรายการ)</h3>
+                                <h3 className="font-bold text-lg mb-4">{t.createTask} (ทีละรายการ)</h3>
                                 <form onSubmit={handleCreate} className="space-y-3 mb-6">
                                     <input required placeholder={t.article} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.article} onChange={e=>setForm({...form, article: e.target.value})} />
                                     <div className="flex gap-2">
                                         <input required placeholder={t.aisle} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.aisle} onChange={e=>setForm({...form, aisle: e.target.value})} />
                                         <input required placeholder={t.bay} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.bay} onChange={e=>setForm({...form, bay: e.target.value})} />
                                     </div>
-                                    {user.role === 'Admin' && <input required placeholder={t.dept} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.dept} onChange={e=>setForm({...form, dept: e.target.value})} />}
+                                    
+                                    {/* FIX 1: แก้ไขช่องป้อนข้อมูลเป็น Dropdown แบบเลือกแผนกปลายทาง */}
+                                    {user.role === 'Admin' && (
+                                        <select required className="w-full p-3 border rounded outline-none focus:border-rose-500 bg-white"
+                                            value={form.dept} onChange={e=>setForm({...form, dept: e.target.value})}>
+                                            <option value="" disabled>-- เลือกแผนกปลายทาง --</option>
+                                            <option value="เบเกอรี">เบเกอรี</option>
+                                            <option value="ผักและผลไม้">ผักและผลไม้</option>
+                                            <option value="อาหารทะเล">อาหารทะเล</option>
+                                            <option value="เนื้อสัตว์">เนื้อสัตว์</option>
+                                            <option value="อาหารแช่แข็ง">อาหารแช่แข็ง</option>
+                                        </select>
+                                    )}
                                     <button disabled={loading} type="submit" className="w-full bg-blue-600 text-white p-3 rounded font-bold hover:bg-blue-700 mt-2">{t.btnCreate}</button>
                                 </form>
 
@@ -463,7 +491,7 @@
                                 <p className="text-sm text-gray-500 mb-3">ไฟล์ต้องมีหัวคอลัมน์: Aisle, Bay, Dept, Article</p>
                                 
                                 <label className="block w-full text-center p-4 border-2 border-dashed border-green-300 bg-green-50 rounded-lg cursor-pointer hover:bg-green-100 transition">
-                                    <span className="text-green-700 font-bold">{loading ? 'กำลังประมวลผล...' : '📥 เลือกไฟล์ Excel (.xlsx)'}</span>
+                                    <span className="text-green-700 font-bold">{loading ? 'กำลังอ่านไฟล์...' : '📥 เลือกไฟล์ Excel (.xlsx)'}</span>
                                     <input type="file" accept=".xlsx, .xls" onChange={handleExcelUpload} disabled={loading} className="hidden" />
                                 </label>
                             </div>
@@ -483,6 +511,51 @@
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FIX 2: หน้าต่างพรีวิวข้อมูลก่อนกดยืนยันสร้างงาน (จะแสดงเมื่อมีการเลือกไฟล์แล้วเท่านั้น) */}
+                    {view === 'tasks' && previewTasks && (
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-blue-200">
+                            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                                <div>
+                                    <h3 className="font-bold text-xl text-blue-800">พรีวิวข้อมูลเตรียมแจกงาน</h3>
+                                    <p className="text-sm text-gray-500">พบข้อมูลที่อ่านได้ทั้งหมด <span className="font-bold text-lg text-rose-600">{previewTasks.length}</span> รายการ</p>
+                                </div>
+                                <div className="flex gap-2 w-full md:w-auto">
+                                    <button onClick={() => setPreviewTasks(null)} disabled={loading} className="flex-1 md:flex-none px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300 transition">
+                                        ย้อนกลับ / ยกเลิก
+                                    </button>
+                                    <button onClick={confirmBulkUpload} disabled={loading} className="flex-1 md:flex-none px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition flex justify-center items-center">
+                                        {loading ? <div className="spinner border-l-white mr-2"></div> : '✅ ยืนยันการแจกงาน'}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="max-h-[500px] overflow-y-auto border rounded-lg bg-gray-50 hide-scroll">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-blue-100 text-blue-900 sticky top-0 shadow-sm">
+                                        <tr>
+                                            <th className="p-3">ลำดับ</th>
+                                            <th className="p-3">รหัสสินค้า (Article)</th>
+                                            <th className="p-3">แผนก (Dept)</th>
+                                            <th className="p-3">Aisle</th>
+                                            <th className="p-3">Bay</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y bg-white">
+                                        {previewTasks.map((t, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50">
+                                                <td className="p-3 text-gray-400">{idx + 1}</td>
+                                                <td className="p-3 font-bold text-gray-800">{t.article}</td>
+                                                <td className="p-3 text-blue-600 font-medium">{t.dept}</td>
+                                                <td className="p-3">{t.aisle}</td>
+                                                <td className="p-3">{t.bay}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     )}
