@@ -418,15 +418,38 @@
             // ฟังก์ชันกดยืนยันจากหน้าพรีวิว (ยิง API จริง)
             const confirmBulkUpload = async () => {
                 setLoading(true);
-                const res = await fetchGAS({ action: 'createTasksBulk', tasks: previewTasks });
-                if(res.success) {
-                    alert(res.message);
-                    setPreviewTasks(null); // เคลียร์หน้าต่างพรีวิว
-                    loadData(); // โหลดข้อมูลมาใหม่
-                } else {
-                    alert("เกิดข้อผิดพลาด: " + res.message);
+                
+                // ตั้งค่า Controller เพื่อจับเวลา หากเกิน 30 วินาทีให้ตัดการเชื่อมต่อ
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); 
+            
+                try {
+                    const res = await fetch(GAS_URL, {
+                        method: 'POST',
+                        signal: controller.signal,
+                        body: JSON.stringify({ action: 'createTasksBulk', tasks: previewTasks }),
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        alert("อัปโหลดสำเร็จ!");
+                        setPreviewTasks(null);
+                        loadData();
+                    } else {
+                        alert("เกิดข้อผิดพลาดจาก Server: " + data.message);
+                    }
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        alert("การเชื่อมต่อหมดเวลา (Timeout) กรุณาตรวจสอบอินเทอร์เน็ตหรือลองใหม่อีกครั้ง");
+                    } else {
+                        alert("ไม่สามารถเชื่อมต่อกับ Google Apps Script ได้: " + err.message);
+                    }
+                } finally {
+                    setLoading(false);
                 }
-                setLoading(false);
             };
 
             const exportExcel = () => {
