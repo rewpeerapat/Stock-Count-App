@@ -11,6 +11,7 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
@@ -27,9 +28,6 @@
         // ==========================================
         const GAS_URL = "https://script.google.com/macros/s/AKfycbya6JnNk4OybI_xJl0QZhlCV3n3h5hMKss3RxKi7dODM32Sn5bo2DdXeyNqatEsFVzr/exec";
 
-        // ==========================================
-        // Dictionary (ระบบ 3 ภาษา)
-        // ==========================================
         const dict = {
             th: {
                 sysName: "ระบบจัดการสต็อก", login: "เข้าสู่ระบบ", register: "สมัครสมาชิก", empId: "รหัสพนักงาน", pass: "รหัสผ่าน",
@@ -107,7 +105,7 @@
         }
 
         // ==========================================
-        // หน้า Login / Register
+        // หน้า Login / Register (เพิ่ม Dropdown แผนก)
         // ==========================================
         function AuthScreen({ t, lang, setLang, setUser, fetchGAS }) {
             const [isReg, setIsReg] = useState(false);
@@ -140,14 +138,28 @@
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <input required placeholder={t.empId} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500"
                                 value={form.empId} onChange={e => setForm({...form, empId: e.target.value})} />
+                            
                             {isReg && <input required placeholder={t.name} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500"
                                 value={form.name} onChange={e => setForm({...form, name: e.target.value})} />}
-                            {isReg && <input required placeholder={t.dept} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500"
-                                value={form.dept} onChange={e => setForm({...form, dept: e.target.value})} />}
+                            
+                            {/* Dropdown เลือกแผนก */}
+                            {isReg && 
+                                <select required className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500 bg-white"
+                                    value={form.dept} onChange={e => setForm({...form, dept: e.target.value})}>
+                                    <option value="" disabled>-- เลือกแผนก --</option>
+                                    <option value="เบเกอรี">เบเกอรี</option>
+                                    <option value="ผักและผลไม้">ผักและผลไม้</option>
+                                    <option value="อาหารทะเล">อาหารทะเล</option>
+                                    <option value="เนื้อสัตว์">เนื้อสัตว์</option>
+                                    <option value="อาหารแช่แข็ง">อาหารแช่แข็ง</option>
+                                </select>
+                            }
+
                             <input required type="password" placeholder={t.pass} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500"
                                 value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
+                            
                             <button disabled={loading} type="submit" className="w-full bg-rose-600 text-white p-3 rounded-lg font-bold hover:bg-rose-700 flex justify-center items-center">
-                                {loading ? <div className="spinner"></div> : (isReg ? t.btnReg : t.btnLogin)}
+                                {loading ? <div className="spinner border-l-white"></div> : (isReg ? t.btnReg : t.btnLogin)}
                             </button>
                         </form>
                         <div className="mt-4 text-center">
@@ -161,19 +173,18 @@
         }
 
         // ==========================================
-        // แดชบอร์ด พนักงานนับสต็อก (Staff) + ระบบ Lookup
+        // แดชบอร์ด พนักงานนับสต็อก (Staff)
         // ==========================================
         function StaffPanel({ user, t, fetchGAS }) {
             const [tasks, setTasks] = useState([]);
             const [activeTask, setActiveTask] = useState(null);
             const [loading, setLoading] = useState(false);
 
-            // ตัวแปรสำหรับระบบ Lookup
             const [scanArticle, setScanArticle] = useState('');
             const [productDetail, setProductDetail] = useState(null);
             const [isLookupLoading, setIsLookupLoading] = useState(false);
+            const [isScannerOpen, setIsScannerOpen] = useState(false);
 
-            // ฟอร์มนับ
             const [weight, setWeight] = useState('');
             const [imgBase64, setImgBase64] = useState('');
 
@@ -187,13 +198,13 @@
             };
 
             const resetState = () => {
-                setActiveTask(null); setScanArticle(''); setProductDetail(null); setWeight(''); setImgBase64('');
+                setActiveTask(null); setScanArticle(''); setProductDetail(null); setWeight(''); setImgBase64(''); setIsScannerOpen(false);
             };
 
-            const handleLookup = async () => {
-                if(!scanArticle) return;
+            const handleLookup = async (manualArticle = scanArticle) => {
+                if(!manualArticle) return;
                 setIsLookupLoading(true);
-                const res = await fetchGAS({ action: 'lookup', article: scanArticle });
+                const res = await fetchGAS({ action: 'lookup', article: manualArticle });
                 if(res.success) {
                     setProductDetail(res.product);
                 } else {
@@ -202,6 +213,20 @@
                 }
                 setIsLookupLoading(false);
             };
+
+            // ระบบแสกนบาร์โค้ด
+            useEffect(() => {
+                if(isScannerOpen) {
+                    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 150} }, false);
+                    html5QrcodeScanner.render((decodedText) => {
+                        setScanArticle(decodedText);
+                        html5QrcodeScanner.clear();
+                        setIsScannerOpen(false);
+                        handleLookup(decodedText);
+                    });
+                    return () => { html5QrcodeScanner.clear().catch(e => {}); }
+                }
+            }, [isScannerOpen]);
 
             const handleFile = (e) => {
                 const file = e.target.files[0];
@@ -238,17 +263,24 @@
                             <p className="text-sm text-blue-800 mt-1">Aisle: <b>{activeTask.Aisle}</b> | Bay: <b>{activeTask.Bay}</b></p>
                         </div>
                         
-                        {/* ส่วน Lookup สินค้า */}
                         <label className="block text-sm font-bold text-gray-700 mb-2">{t.scanToVerify}</label>
+                        
                         <div className="flex gap-2 mb-4">
                             <input type="text" placeholder={t.article} className="flex-1 p-3 border-2 rounded-lg outline-none focus:border-rose-500 text-lg"
-                                value={scanArticle} onChange={e => setScanArticle(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleLookup()} />
-                            <button onClick={handleLookup} disabled={isLookupLoading} className="bg-gray-800 text-white px-4 rounded-lg font-bold flex items-center justify-center min-w-[80px]">
+                                value={scanArticle} onChange={e => setScanArticle(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleLookup(scanArticle)} />
+                            
+                            <button onClick={() => setIsScannerOpen(!isScannerOpen)} className="bg-rose-600 text-white px-4 rounded-lg flex items-center justify-center text-xl">
+                                📷
+                            </button>
+
+                            <button onClick={() => handleLookup(scanArticle)} disabled={isLookupLoading} className="bg-gray-800 text-white px-4 rounded-lg font-bold flex items-center justify-center min-w-[80px]">
                                 {isLookupLoading ? <div className="spinner border-l-white"></div> : t.lookupBtn}
                             </button>
                         </div>
 
-                        {/* แสดงผลหลังจาก Lookup สำเร็จ */}
+                        {/* พื้นที่เปิดกล้อง */}
+                        {isScannerOpen && <div id="reader" className="w-full mb-4 rounded overflow-hidden shadow"></div>}
+
                         {productDetail && (
                             <div className={`p-4 rounded-lg mb-6 border ${isMismatch ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
                                 <p className="text-sm text-gray-600 mb-1">{t.productFound}:</p>
@@ -257,7 +289,6 @@
                             </div>
                         )}
 
-                        {/* ฟอร์มกรอกน้ำหนักและรูปภาพ (จะแสดงก็ต่อเมื่อ Lookup เจอสินค้าแล้วเท่านั้น) */}
                         {productDetail && (
                             <div className="animate-[fadeIn_0.3s_ease-in-out]">
                                 <input type="number" step="0.01" placeholder={t.weight} className="w-full p-4 border-2 rounded-lg text-xl mb-4 focus:border-rose-500 outline-none"
@@ -300,7 +331,7 @@
         }
 
         // ==========================================
-        // แดชบอร์ด หัวหน้างาน/Admin (Supervisor)
+        // แดชบอร์ด หัวหน้างาน (เพิ่มระบบ Upload Excel)
         // ==========================================
         function SupervisorPanel({ user, t, fetchGAS }) {
             const [view, setView] = useState('tasks');
@@ -331,6 +362,58 @@
                 setLoading(false);
             };
 
+            // ฟังก์ชันอ่านไฟล์ Excel และแปลงข้อมูลเพื่อแจกงานแบบกลุ่ม
+            const handleExcelUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = async (evt) => {
+                    try {
+                        const data = evt.target.result;
+                        const workbook = XLSX.read(data, { type: 'binary' });
+                        const firstSheet = workbook.SheetNames[0];
+                        const excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: "" });
+
+                        // จัดรูปแบบข้อมูลให้อิงตามหัวคอลัมน์ Aisle, Bay, Dept, Article
+                        const formattedTasks = excelRows.map(row => {
+                            // Helper ดึงข้อมูลแบบไม่สนใจตัวพิมพ์เล็ก/ใหญ่ หรือช่องว่าง
+                            const getVal = (key) => {
+                                const foundKey = Object.keys(row).find(k => k.trim().toLowerCase() === key.toLowerCase());
+                                return foundKey ? row[foundKey] : '';
+                            };
+                            return {
+                                aisle: getVal('Aisle'),
+                                bay: getVal('Bay'),
+                                dept: getVal('Dept'),
+                                article: getVal('Article')
+                            };
+                        }).filter(t => String(t.article).trim() !== ''); // เอาเฉพาะบรรทัดที่มีรหัสสินค้า
+
+                        if(formattedTasks.length === 0) {
+                            alert("ไม่พบข้อมูลสินค้าในไฟล์ Excel หรือหัวคอลัมน์ไม่ตรง (ต้องการ: Aisle, Bay, Dept, Article)");
+                            return;
+                        }
+
+                        if(confirm(`พบข้อมูลแจกงานทั้งหมด ${formattedTasks.length} รายการ ต้องการอัปโหลดใช่หรือไม่?`)) {
+                            setLoading(true);
+                            const res = await fetchGAS({ action: 'createTasksBulk', tasks: formattedTasks });
+                            if(res.success) {
+                                alert(res.message);
+                                loadData(); // โหลดรายการงานใหม่
+                            } else {
+                                alert("เกิดข้อผิดพลาด: " + res.message);
+                            }
+                            setLoading(false);
+                        }
+                    } catch(err) {
+                        alert("ไฟล์ Excel ไม่ถูกต้อง หรือไม่สามารถอ่านได้");
+                    }
+                    e.target.value = null; // reset input
+                };
+                reader.readAsBinaryString(file);
+            };
+
             const exportExcel = () => {
                 const dataToExport = submissions.map(s => {
                     const dateOnly = s.Date ? String(s.Date).split(' ')[0] : '';
@@ -359,9 +442,11 @@
 
                     {view === 'tasks' && (
                         <div className="grid md:grid-cols-2 gap-6">
+                            
+                            {/* ฟอร์มสร้างงาน 1 รายการ */}
                             <div className="bg-white p-6 rounded-xl shadow-sm border">
-                                <h3 className="font-bold text-lg mb-4">{t.createTask}</h3>
-                                <form onSubmit={handleCreate} className="space-y-3">
+                                <h3 className="font-bold text-lg mb-4">{t.createTask} (สร้างทีละรายการ)</h3>
+                                <form onSubmit={handleCreate} className="space-y-3 mb-6">
                                     <input required placeholder={t.article} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.article} onChange={e=>setForm({...form, article: e.target.value})} />
                                     <div className="flex gap-2">
                                         <input required placeholder={t.aisle} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.aisle} onChange={e=>setForm({...form, aisle: e.target.value})} />
@@ -370,15 +455,27 @@
                                     {user.role === 'Admin' && <input required placeholder={t.dept} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.dept} onChange={e=>setForm({...form, dept: e.target.value})} />}
                                     <button disabled={loading} type="submit" className="w-full bg-blue-600 text-white p-3 rounded font-bold hover:bg-blue-700 mt-2">{t.btnCreate}</button>
                                 </form>
+
+                                <hr className="my-4"/>
+
+                                {/* ระบบสร้างงานแบบกลุ่มจาก Excel */}
+                                <h3 className="font-bold text-lg mb-2 text-green-700">อัปโหลดงานจาก Excel</h3>
+                                <p className="text-sm text-gray-500 mb-3">ไฟล์ต้องมีหัวคอลัมน์: Aisle, Bay, Dept, Article</p>
+                                
+                                <label className="block w-full text-center p-4 border-2 border-dashed border-green-300 bg-green-50 rounded-lg cursor-pointer hover:bg-green-100 transition">
+                                    <span className="text-green-700 font-bold">{loading ? 'กำลังประมวลผล...' : '📥 เลือกไฟล์ Excel (.xlsx)'}</span>
+                                    <input type="file" accept=".xlsx, .xls" onChange={handleExcelUpload} disabled={loading} className="hidden" />
+                                </label>
                             </div>
+                            
                             <div className="bg-white p-6 rounded-xl shadow-sm border">
                                 <h3 className="font-bold text-lg mb-4">{t.taskList}</h3>
-                                <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2">
+                                <div className="max-h-[500px] overflow-y-auto space-y-2 pr-2">
                                     {tasks.map(task => (
                                         <div key={task.TaskID} className="p-3 border rounded flex justify-between items-center text-sm bg-gray-50">
                                             <div>
                                                 <div className="font-bold text-base text-gray-800">{task.Article}</div>
-                                                <div className="text-gray-500 mt-1">Aisle: {task.Aisle} | Bay: {task.Bay}</div>
+                                                <div className="text-gray-500 mt-1">Aisle: {task.Aisle} | Bay: {task.Bay} | Dept: {task.Dept}</div>
                                             </div>
                                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${task.Status === 'Pending' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
                                                 {task.Status}
