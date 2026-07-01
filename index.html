@@ -28,7 +28,7 @@
         // ==========================================
         // ⚠️ นำ URL จาก Google Apps Script มาใส่ตรงนี้
         // ==========================================
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbyMeGYPO3rGLadpMz4dm1IIdFioRbYA9wEnbp030yp1vWcqEMTlT3gIvtmDuEhde80/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbycCr93rXNG2zqS5dZtPoWWoLzBP7awj4Bku_7GNQ1_r0O2WGw33iIEtuepEp6mcAWz/exec";
 
         const dict = {
             th: {
@@ -176,11 +176,12 @@
 
             useEffect(() => { loadTasks(); }, []);
 
-            const loadTasks = async () => {
-                setLoading(true);
+            // เพิ่ม silent mode เพื่อไม่ให้ขึ้น Loader ตอนอัปเดตเบื้องหลัง
+            const loadTasks = async (silent = false) => {
+                if (!silent) setLoading(true);
                 const res = await fetchGAS({ action: 'getTasks', role: user.role, dept: user.dept });
                 if(res && res.success) setTasks(res.tasks);
-                setLoading(false);
+                if (!silent) setLoading(false);
             };
 
             const resetState = () => {
@@ -238,15 +239,24 @@
             const submitTask = async () => {
                 if(!weight || !imgBase64) return alert("กรุณากรอกน้ำหนักและถ่ายรูป");
                 setLoading(true);
+                
+                // เก็บ ID ของงานปัจจุบันไว้ก่อน
+                const currentTaskId = activeTask.TaskID;
+
                 const res = await fetchGAS({
                     action: 'submitCount', taskId: activeTask.TaskID, empId: user.empId, 
                     article: activeTask.Article, weight: weight, imageBase64: imgBase64
                 });
+                
                 if(res && res.success) {
                     alert(t.done);
+                    // ทันทีที่สำเร็จ: สั่งอัปเดตสถานะงานนี้ให้เป็น 'Done' ในหน่วยความจำเลย (รายการจะหายไปทันที)
+                    setTasks(prev => prev.map(task => task.TaskID === currentTaskId ? { ...task, Status: 'Done' } : task));
                     resetState();
-                    loadTasks();
+                    // โหลดข้อมูลให้ตรงกับฐานข้อมูลจริงอีกครั้งแบบซ่อน Loader
+                    loadTasks(true);
                 } else if(res) alert(res.message);
+                
                 setLoading(false);
             };
 
@@ -316,13 +326,16 @@
                 );
             }
 
+            // กรองมาแสดงเฉพาะงานที่สถานะยังไม่เป็น 'Done' เท่านั้น
+            const pendingTasks = tasks.filter(task => task.Status !== 'Done');
+
             return (
                 <div className="max-w-lg mx-auto">
                     <h2 className="text-lg font-bold mb-4 text-gray-700">{t.myTasks} ({user.dept})</h2>
-                    {loading && <p>Loading...</p>}
-                    {!loading && tasks.length === 0 && <div className="p-8 text-center bg-white rounded-xl shadow-sm text-gray-500">{t.noTask}</div>}
+                    {loading && tasks.length === 0 && <p>Loading...</p>}
+                    {!loading && pendingTasks.length === 0 && <div className="p-8 text-center bg-white rounded-xl shadow-sm text-gray-500">{t.noTask}</div>}
                     <div className="grid gap-3">
-                        {tasks.map(task => (
+                        {pendingTasks.map(task => (
                             <div key={task.TaskID} onClick={() => setActiveTask(task)} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-rose-500 cursor-pointer hover:shadow-md transition flex justify-between items-center">
                                 <div>
                                     <div className="font-bold text-lg">{t.article}: {task.Article}</div>
