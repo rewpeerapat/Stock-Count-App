@@ -352,6 +352,35 @@
             const [previewTasks, setPreviewTasks] = useState(null);
             const [status, setStatus] = useState("");
 
+            // เพิ่ม State สำหรับกำหนดช่วงวันที่ค้นหา (Filter)
+            const [startDate, setStartDate] = useState('');
+            const [endDate, setEndDate] = useState('');
+
+            // Helper 1: แปลงข้อมูลเวลาที่หลุดมาเป็น ISO หรือ Text ให้เป็น Date Object
+            const parseLogDate = (dateStr) => {
+                if (!dateStr) return null;
+                const str = String(dateStr);
+                if (str.includes('T')) return new Date(str);
+                
+                // สำหรับรูปแบบ 30-06-2026 14:09:58
+                const parts = str.split(' ');
+                if (parts.length === 2) {
+                    const dParts = parts[0].split('-');
+                    if (dParts.length === 3) {
+                        return new Date(`${dParts[2]}-${dParts[1]}-${dParts[0]}T${parts[1]}`);
+                    }
+                }
+                return new Date(str);
+            };
+
+            // Helper 2: แปลง Date Object กลับเป็นข้อความรูปแบบ "DD-MM-YYYY HH:mm:ss" เสมอ
+            const formatDisplayDate = (dateStr) => {
+                const d = parseLogDate(dateStr);
+                if (!d || isNaN(d.getTime())) return String(dateStr);
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            };
+
             // อัปเดต: ฟังก์ชันโหลดข้อมูล โดยสามารถเลือกได้ว่าจะให้ขึ้น Spinner หรือไม่ (ใช้กับการ Refresh อัตโนมัติ)
             const loadData = async (isPolling = false) => {
                 if (!isPolling) setLoading(true);
@@ -447,12 +476,36 @@
                 }
             };
 
+            // กรองข้อมูลตามช่วงวันที่เลือก (Filter)
+            const filteredSubmissions = submissions.filter(s => {
+                if (!startDate && !endDate) return true;
+                const logDate = parseLogDate(s.Date);
+                if (!logDate || isNaN(logDate.getTime())) return true;
+                
+                logDate.setHours(0,0,0,0);
+                let keep = true;
+                
+                if (startDate) {
+                    const sDate = new Date(startDate);
+                    sDate.setHours(0,0,0,0);
+                    if (logDate < sDate) keep = false;
+                }
+                if (endDate) {
+                    const eDate = new Date(endDate);
+                    eDate.setHours(0,0,0,0);
+                    if (logDate > eDate) keep = false;
+                }
+                return keep;
+            });
+
             const exportExcel = () => {
-                const dataToExport = submissions.map(s => {
+                // ส่งออกเฉพาะข้อมูลที่ถูก Filter แล้ว
+                const dataToExport = filteredSubmissions.map(s => {
                     const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
+                    const formatted = formatDisplayDate(s.Date);
                     return {
-                        "Date": s.Date ? String(s.Date).split(' ')[0] : '',
-                        "Time": s.Date ? String(s.Date).split(' ')[1] : '',
+                        "Date": formatted.split(' ')[0] || '',
+                        "Time": formatted.split(' ')[1] || '',
                         "Dept": matchedTask.Dept || s.Dept || "N/A",
                         "Aisle": matchedTask.Aisle || "N/A",
                         "Bay": matchedTask.Bay || "N/A",
@@ -612,10 +665,26 @@
 
                     {view === 'report' && (
                         <div className="bg-white p-6 rounded-xl shadow-sm border">
-                            <div className="flex justify-between items-center mb-6">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                                 <h3 className="font-bold text-lg">{t.viewReport} (Log)</h3>
-                                <div className="flex gap-2">
-                                    <button onClick={() => loadData(false)} disabled={loading} className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded shadow-sm border hover:bg-gray-200 transition">
+                                
+                                <div className="flex gap-2 flex-wrap items-center">
+                                    {/* 📌 ส่วนค้นหาช่วงวันที่ */}
+                                    <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
+                                        <span className="text-sm font-bold text-gray-600">📅 ค้นหาวันที่:</span>
+                                        <input type="date" className="border rounded p-1 text-sm outline-none focus:border-rose-500" 
+                                            value={startDate} onChange={e => setStartDate(e.target.value)} />
+                                        <span className="text-sm text-gray-500">-</span>
+                                        <input type="date" className="border rounded p-1 text-sm outline-none focus:border-rose-500" 
+                                            value={endDate} onChange={e => setEndDate(e.target.value)} />
+                                        {(startDate || endDate) && (
+                                            <button onClick={() => { setStartDate(''); setEndDate(''); }} className="text-red-500 hover:bg-red-50 px-2 py-1 rounded text-xs font-bold transition">
+                                                ล้าง
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <button onClick={() => loadData(false)} disabled={loading} className="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded shadow-sm border hover:bg-gray-200 transition">
                                         🔄 อัปเดต
                                     </button>
                                     <button onClick={exportExcel} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-green-700 flex items-center gap-2">
@@ -638,11 +707,17 @@
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {submissions.map((s, idx) => {
+                                        {filteredSubmissions.length === 0 && (
+                                            <tr>
+                                                <td colSpan="7" className="text-center p-6 text-gray-500">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td>
+                                            </tr>
+                                        )}
+                                        {filteredSubmissions.map((s, idx) => {
                                             const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
                                             return (
                                                 <tr key={idx} className="hover:bg-gray-50">
-                                                    <td className="p-3 text-gray-500 whitespace-nowrap">{s.Date}</td>
+                                                    {/* เปลี่ยนให้แสดงผลเวลาผ่านฟังก์ชัน formatDisplayDate */}
+                                                    <td className="p-3 text-gray-500 whitespace-nowrap">{formatDisplayDate(s.Date)}</td>
                                                     <td className="p-3 font-medium text-gray-800">{matchedTask.Dept || '-'}</td>
                                                     <td className="p-3 text-blue-700 font-bold">{matchedTask.Aisle || '-'}/{matchedTask.Bay || '-'}</td>
                                                     <td className="p-3 font-bold text-gray-800">{s.Article}</td>
