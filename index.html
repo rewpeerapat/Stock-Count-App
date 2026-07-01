@@ -37,33 +37,11 @@
                 name: "ชื่อ-นามสกุล", dept: "แผนก", btnLogin: "เข้าสู่ระบบ", btnReg: "สมัครบัญชีใหม่", logout: "ออกจากระบบ", 
                 role_Admin: "ผู้ดูแลระบบ", role_Supervisor: "หัวหน้างาน", role_Staff: "พนักงาน",
                 createTask: "มอบหมายงานใหม่", article: "รหัสสินค้า", aisle: "Aisle", bay: "Bay", btnCreate: "สร้างงาน",
-                taskList: "รายการงาน", status: "สถานะ", viewReport: "ดูรายงานและส่งออก", export: "Export Excel",
+                taskList: "ความคืบหน้าการนับสต็อก", status: "สถานะ", viewReport: "รายงานและประวัติการนับ", export: "Export Excel",
                 myTasks: "งานของฉัน", countTarget: "เป้าหมายการนับ", weight: "น้ำหนัก (กิโลกรัม)", 
                 takePhoto: "📸 ถ่ายภาพสินค้า", retakePhoto: "📸 ถ่ายภาพใหม่", btnSubmit: "บันทึกข้อมูล",
                 noTask: "ไม่มีงานค้างอยู่ในขณะนี้", pending: "รอดำเนินการ", done: "เสร็จสิ้น",
                 scanToVerify: "สแกน/กรอก รหัสสินค้าเพื่อยืนยัน", lookupBtn: "ค้นหา", productFound: "ชื่อสินค้า", mismatchWarn: "รหัสสินค้าไม่ตรงกับงานที่ได้รับมอบหมาย!"
-            },
-            en: {
-                sysName: "Stock Count System", login: "Login", register: "Register", empId: "Employee ID", pass: "Password",
-                name: "Full Name", dept: "Department", btnLogin: "Sign In", btnReg: "Create Account", logout: "Logout", 
-                role_Admin: "Admin", role_Supervisor: "Supervisor", role_Staff: "Staff",
-                createTask: "Assign Task", article: "Article No.", aisle: "Aisle", bay: "Bay", btnCreate: "Create",
-                taskList: "Task List", status: "Status", viewReport: "View Report", export: "Export Excel",
-                myTasks: "My Tasks", countTarget: "Counting Target", weight: "Weight (kg)",
-                takePhoto: "📸 Take Photo", retakePhoto: "📸 Retake Photo", btnSubmit: "Submit",
-                noTask: "No pending tasks at the moment.", pending: "Pending", done: "Done",
-                scanToVerify: "Scan/Enter Article to Verify", lookupBtn: "Lookup", productFound: "Product Name", mismatchWarn: "Article mismatch with assigned task!"
-            },
-            my: {
-                sysName: "စတော့ရှယ်ယာရေတွက်စနစ်", login: "လော့ဂ်အင်", register: "မှတ်ပုံတင်မည်", empId: "ဝန်ထမ်း ID", pass: "စကားဝှက်",
-                name: "နာမည်အပြည့်အစုံ", dept: "ဌာန", btnLogin: "ဝင်ရောက်ရန်", btnReg: "အကောင့်ဖန်တီးပါ။", logout: "ထွက်မည်", 
-                role_Admin: "အက်ဒမင်", role_Supervisor: "ကြီးကြပ်ရေးမှူး", role_Staff: "ဝန်ထမ်း",
-                createTask: "အလုပ်ခန့်အပ်ပါ။", article: "ဆောင်းပါးနံပါတ်", aisle: "Aisle", bay: "Bay", btnCreate: "ဖန်တီးပါ။",
-                taskList: "အလုပ်စာရင်း", status: "အခြေအနေ", viewReport: "အစီရင်ခံစာကိုကြည့်ပါ။", export: "Excel ထုတ်ယူပါ။",
-                myTasks: "ငါ့အလုပ်များ", countTarget: "ပစ်မှတ်", weight: "အလေးချိန် (ကီလိုဂရမ်)",
-                takePhoto: "📸 ဓာတ်ပုံရိုက်ပါ။", retakePhoto: "📸 ပြန်ရိုက်ပါ။", btnSubmit: "တင်သွင်းပါ။",
-                noTask: "ဆိုင်းငံ့ထားသောအလုပ်မရှိပါ။", pending: "ဆိုင်းငံ့ထားသည်။", done: "ပြီးပြီ",
-                scanToVerify: "အတည်ပြုရန်စကင်ဖတ်ပါ။", lookupBtn: "ရှာဖွေပါ။", productFound: "ကုန်ပစ္စည်းအမည်", mismatchWarn: "ဆောင်းပါးသည် ကိုက်ညီမှုမရှိပါ။"
             }
         };
 
@@ -76,9 +54,13 @@
 
             const fetchGAS = async (payload) => {
                 const res = await fetch(GAS_URL, {
-                    method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                    method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' }
                 });
                 return res.json();
+            };
+
+            const verifyArticleMatch = (scanned, assigned) => {
+                return String(scanned).trim() === String(assigned).trim();
             };
 
             if (!user) return <AuthScreen t={t} lang={lang} setLang={setLang} setUser={setUser} fetchGAS={fetchGAS} />;
@@ -90,17 +72,12 @@
                             <h1 className="text-xl font-bold">{t.sysName}</h1>
                             <p className="text-sm opacity-80">{user.name} ({t['role_'+user.role]} - {user.dept})</p>
                         </div>
-                        <div className="flex gap-2 items-center">
-                            <select value={lang} onChange={e => setLang(e.target.value)} className="bg-rose-800 text-white text-sm p-1 rounded border-none outline-none">
-                                <option value="th">🇹🇭 TH</option><option value="en">🇬🇧 EN</option><option value="my">🇲🇲 MM</option>
-                            </select>
-                            <button onClick={() => setUser(null)} className="text-sm bg-rose-900 px-3 py-1 rounded hover:bg-rose-950">{t.logout}</button>
-                        </div>
+                        <button onClick={() => setUser(null)} className="text-sm bg-rose-900 px-3 py-1 rounded hover:bg-rose-950">{t.logout}</button>
                     </header>
-                    <main className="flex-1 p-4 max-w-4xl w-full mx-auto">
+                    <main className="flex-1 p-4 max-w-6xl w-full mx-auto">
                         {(user.role === 'Admin' || user.role === 'Supervisor') 
                             ? <SupervisorPanel user={user} t={t} fetchGAS={fetchGAS} /> 
-                            : <StaffPanel user={user} t={t} fetchGAS={fetchGAS} />
+                            : <StaffPanel user={user} t={t} fetchGAS={fetchGAS} verifyMatch={verifyArticleMatch} />
                         }
                     </main>
                 </div>
@@ -131,11 +108,6 @@
             return (
                 <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
                     <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6">
-                        <div className="flex justify-end mb-4">
-                            <select value={lang} onChange={e => setLang(e.target.value)} className="bg-gray-100 text-sm p-1 rounded outline-none border">
-                                <option value="th">🇹🇭 ภาษาไทย</option><option value="en">🇬🇧 English</option><option value="my">🇲🇲 မြန်မာ</option>
-                            </select>
-                        </div>
                         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">{isReg ? t.register : t.login}</h2>
                         
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -145,7 +117,6 @@
                             {isReg && <input required placeholder={t.name} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500"
                                 value={form.name} onChange={e => setForm({...form, name: e.target.value})} />}
                             
-                            {/* Dropdown สำหรับสมัครสมาชิก */}
                             {isReg && 
                                 <select required className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500 bg-white"
                                     value={form.dept} onChange={e => setForm({...form, dept: e.target.value})}>
@@ -176,10 +147,9 @@
         }
 
         // ==========================================
-        // แดชบอร์ด พนักงานนับสต็อก (Staff) 
+        // แดชบอร์ด พนักงานนับสต็อก (Staff)
         // ==========================================
-        function StaffPanel({ user, t, fetchGAS }) {
-            // (ใช้โค้ดเดิม ไม่มีการแก้ไขในส่วนนี้)
+        function StaffPanel({ user, t, fetchGAS, verifyMatch }) {
             const [tasks, setTasks] = useState([]);
             const [activeTask, setActiveTask] = useState(null);
             const [loading, setLoading] = useState(false);
@@ -208,7 +178,7 @@
             const handleLookup = async (manualArticle = scanArticle) => {
                 if(!manualArticle) return;
                 setIsLookupLoading(true);
-                const res = await fetchGAS({ action: 'lookup', article: manualArticle });
+                const res = await fetchGAS({ action: 'lookup', article: manualArticle.trim() });
                 if(res.success) {
                     setProductDetail(res.product);
                 } else {
@@ -255,10 +225,10 @@
             };
 
             if (activeTask) {
-                const isMismatch = productDetail && String(productDetail.Article) !== String(activeTask.Article);
+                const isMismatch = productDetail && !verifyMatch(productDetail.Article, activeTask.Article);
 
                 return (
-                    <div className="bg-white p-6 rounded-xl shadow-sm border">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border max-w-lg mx-auto">
                         <button onClick={resetState} className="text-gray-500 mb-4 font-bold">&larr; กลับ</button>
                         
                         <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100">
@@ -313,7 +283,7 @@
             }
 
             return (
-                <div>
+                <div className="max-w-lg mx-auto">
                     <h2 className="text-lg font-bold mb-4 text-gray-700">{t.myTasks} ({user.dept})</h2>
                     {loading && <p>Loading...</p>}
                     {!loading && tasks.length === 0 && <div className="p-8 text-center bg-white rounded-xl shadow-sm text-gray-500">{t.noTask}</div>}
@@ -337,26 +307,27 @@
         // ==========================================
         function SupervisorPanel({ user, t, fetchGAS }) {
             const [view, setView] = useState('tasks');
-            // FIX 1: ให้ค่า default เป็นค่าว่าง (สำหรับ Admin) เพื่อบังคับให้ผู้ใช้เลือก
             const [form, setForm] = useState({ dept: user.role === 'Admin' ? '' : user.dept, article: '', aisle: '', bay: '' });
             const [tasks, setTasks] = useState([]);
             const [submissions, setSubmissions] = useState([]);
             const [loading, setLoading] = useState(false);
             
-            // FIX 2: State สำหรับพรีวิวข้อมูล Excel ก่อนส่งมอบหมายงาน
             const [previewTasks, setPreviewTasks] = useState(null);
+            const [status, setStatus] = useState("");
 
             useEffect(() => { loadData(); }, [view]);
 
             const loadData = async () => {
                 setLoading(true);
-                if(view === 'tasks') {
-                    const res = await fetchGAS({ action: 'getTasks', role: user.role, dept: user.dept });
-                    if(res.success) setTasks(res.tasks);
-                } else {
-                    const res = await fetchGAS({ action: 'getSubmissions' });
-                    if(res.success) setSubmissions(res.submissions);
-                }
+                // เพื่อให้มีข้อมูล Dept/Aisle/Bay ไปโชว์ใน Report เสมอ เราจะโหลด tasks ตลอด
+                const [resTasks, resSubs] = await Promise.all([
+                    fetchGAS({ action: 'getTasks', role: user.role, dept: user.dept }),
+                    view === 'report' ? fetchGAS({ action: 'getSubmissions' }) : Promise.resolve({ success: true, submissions: [] })
+                ]);
+                
+                if (resTasks.success) setTasks(resTasks.tasks);
+                if (resSubs.success && view === 'report') setSubmissions(resSubs.submissions);
+                
                 setLoading(false);
             };
 
@@ -366,13 +337,12 @@
                 const res = await fetchGAS({ action: 'createTask', ...form });
                 if(res.success) { 
                     alert(res.message); 
-                    setForm({...form, article: '', aisle: '', bay: ''}); // เก็บ dept ไว้เหมือนเดิม
+                    setForm({...form, article: '', aisle: '', bay: ''}); 
                     loadData(); 
                 }
                 setLoading(false);
             };
 
-            // อัปเดต: อ่าน Excel แล้วนำไปแสดง Preview แทนการยิง API ทันที
             const handleExcelUpload = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -399,70 +369,48 @@
                         }).filter(t => String(t.article).trim() !== '');
 
                         if(formattedTasks.length === 0) {
-                            alert("ไม่พบข้อมูลสินค้าในไฟล์ Excel หรือหัวคอลัมน์ไม่ตรง (ต้องการ: Aisle, Bay, Dept, Article)");
-                            e.target.value = null;
-                            return;
+                            alert("ไม่พบข้อมูลในไฟล์ หรือหัวคอลัมน์ไม่ตรง (ต้องการ: Aisle, Bay, Dept, Article)");
+                            e.target.value = null; return;
                         }
-
-                        // เปลี่ยนหน้าเป็นหน้าต่างพรีวิว
                         setPreviewTasks(formattedTasks);
-
-                    } catch(err) {
-                        alert("ไฟล์ Excel ไม่ถูกต้อง หรือไม่สามารถอ่านได้");
-                    }
-                    e.target.value = null; // reset input เพื่อให้สามารถเลือกไฟล์เดิมซ้ำได้ถ้ายกเลิก
+                    } catch(err) { alert("ไฟล์ Excel ไม่ถูกต้อง"); }
+                    e.target.value = null; 
                 };
                 reader.readAsBinaryString(file);
             };
 
-            // ฟังก์ชันกดยืนยันจากหน้าพรีวิว (ยิง API จริง)
             const confirmBulkUpload = async () => {
                 setLoading(true);
-                
-                // ตั้งค่า Controller เพื่อจับเวลา หากเกิน 30 วินาทีให้ตัดการเชื่อมต่อ
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); 
-            
+                setStatus("เริ่มส่งข้อมูล...");
                 try {
-                    const res = await fetch(GAS_URL, {
-                        method: 'POST',
-                        signal: controller.signal,
-                        body: JSON.stringify({ action: 'createTasksBulk', tasks: previewTasks }),
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-                    });
-                    
-                    clearTimeout(timeoutId);
-                    
-                    const data = await res.json();
-                    if (data.success) {
+                    const response = await fetchGAS({ action: 'createTasksBulk', tasks: previewTasks });
+                    if (response.success) {
                         alert("อัปโหลดสำเร็จ!");
                         setPreviewTasks(null);
                         loadData();
                     } else {
-                        alert("เกิดข้อผิดพลาดจาก Server: " + data.message);
+                        alert("Error: " + response.message);
                     }
                 } catch (err) {
-                    if (err.name === 'AbortError') {
-                        alert("การเชื่อมต่อหมดเวลา (Timeout) กรุณาตรวจสอบอินเทอร์เน็ตหรือลองใหม่อีกครั้ง");
-                    } else {
-                        alert("ไม่สามารถเชื่อมต่อกับ Google Apps Script ได้: " + err.message);
-                    }
+                    alert("Debug Info: " + err.message);
                 } finally {
                     setLoading(false);
+                    setStatus("");
                 }
             };
 
             const exportExcel = () => {
                 const dataToExport = submissions.map(s => {
-                    const dateOnly = s.Date ? String(s.Date).split(' ')[0] : '';
                     const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
                     return {
-                        "Stock take : ": dateOnly,
-                        "Stock take : 1": "1",
+                        "Date": s.Date ? String(s.Date).split(' ')[0] : '',
+                        "Time": s.Date ? String(s.Date).split(' ')[1] : '',
+                        "Dept": matchedTask.Dept || s.Dept || "N/A",
                         "Aisle": matchedTask.Aisle || "N/A",
                         "Bay": matchedTask.Bay || "N/A",
                         "Article": s.Article,
-                        "Quantity": s.Weight
+                        "Weight/Qty": s.Weight,
+                        "EmpID": s.EmpID
                     };
                 });
                 const ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -471,20 +419,32 @@
                 XLSX.writeFile(wb, "StockCount_Report.xlsx");
             };
 
+            // จัดกลุ่ม Tasks เพื่อแสดงใน Dashboard แยกตาม Dept -> Aisle -> Bay
+            const groupedTasks = Object.values(tasks.reduce((acc, t) => {
+                const key = `${t.Dept}_${t.Aisle}_${t.Bay}`;
+                if (!acc[key]) acc[key] = { dept: t.Dept, aisle: t.Aisle, bay: t.Bay, tasks: [], done: 0, total: 0 };
+                acc[key].tasks.push(t);
+                acc[key].total++;
+                if (t.Status === 'Done') acc[key].done++;
+                return acc;
+            }, {}));
+            
+            // เรียงลำดับเพื่อให้ดูง่าย
+            groupedTasks.sort((a, b) => a.dept.localeCompare(b.dept) || String(a.aisle).localeCompare(String(b.aisle)) || String(a.bay).localeCompare(String(b.bay)));
+
             return (
                 <div>
                     <div className="flex gap-2 mb-6">
-                        <button onClick={()=>setView('tasks')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${view==='tasks'?'bg-rose-600 text-white shadow-md':'bg-white text-gray-600 border'}`}>มอบหมายงาน</button>
-                        <button onClick={()=>setView('report')} className={`flex-1 py-2 rounded-lg font-bold transition-colors ${view==='report'?'bg-rose-600 text-white shadow-md':'bg-white text-gray-600 border'}`}>ดูรายงาน</button>
+                        <button onClick={()=>setView('tasks')} className={`flex-1 py-3 rounded-lg font-bold transition-colors ${view==='tasks'?'bg-rose-600 text-white shadow-md':'bg-white text-gray-600 border'}`}>1. มอบหมายงาน / ความคืบหน้า</button>
+                        <button onClick={()=>setView('report')} className={`flex-1 py-3 rounded-lg font-bold transition-colors ${view==='report'?'bg-rose-600 text-white shadow-md':'bg-white text-gray-600 border'}`}>2. {t.viewReport}</button>
                     </div>
 
-                    {/* ซ่อนหน้าจอมอบหมายงานปกติ หากอยู่ในโหมด Preview Excel */}
                     {view === 'tasks' && !previewTasks && (
-                        <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid lg:grid-cols-3 gap-6 items-start">
                             
-                            {/* ฟอร์มสร้างงาน 1 รายการ */}
-                            <div className="bg-white p-6 rounded-xl shadow-sm border">
-                                <h3 className="font-bold text-lg mb-4">{t.createTask} (ทีละรายการ)</h3>
+                            {/* ฝั่งซ้าย: ฟอร์มสร้างงาน */}
+                            <div className="bg-white p-6 rounded-xl shadow-sm border lg:col-span-1">
+                                <h3 className="font-bold text-lg mb-4 text-gray-800">{t.createTask}</h3>
                                 <form onSubmit={handleCreate} className="space-y-3 mb-6">
                                     <input required placeholder={t.article} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.article} onChange={e=>setForm({...form, article: e.target.value})} />
                                     <div className="flex gap-2">
@@ -492,7 +452,6 @@
                                         <input required placeholder={t.bay} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.bay} onChange={e=>setForm({...form, bay: e.target.value})} />
                                     </div>
                                     
-                                    {/* FIX 1: แก้ไขช่องป้อนข้อมูลเป็น Dropdown แบบเลือกแผนกปลายทาง */}
                                     {user.role === 'Admin' && (
                                         <select required className="w-full p-3 border rounded outline-none focus:border-rose-500 bg-white"
                                             value={form.dept} onChange={e=>setForm({...form, dept: e.target.value})}>
@@ -508,49 +467,67 @@
                                 </form>
 
                                 <hr className="my-4"/>
-
-                                {/* ระบบสร้างงานแบบกลุ่มจาก Excel */}
-                                <h3 className="font-bold text-lg mb-2 text-green-700">อัปโหลดงานจาก Excel</h3>
-                                <p className="text-sm text-gray-500 mb-3">ไฟล์ต้องมีหัวคอลัมน์: Aisle, Bay, Dept, Article</p>
-                                
-                                <label className="block w-full text-center p-4 border-2 border-dashed border-green-300 bg-green-50 rounded-lg cursor-pointer hover:bg-green-100 transition">
-                                    <span className="text-green-700 font-bold">{loading ? 'กำลังอ่านไฟล์...' : '📥 เลือกไฟล์ Excel (.xlsx)'}</span>
+                                <h3 className="font-bold text-lg mb-2 text-green-700">แจกงานกลุ่ม (Excel)</h3>
+                                <label className="block w-full text-center p-4 border-2 border-dashed border-green-300 bg-green-50 rounded-lg cursor-pointer hover:bg-green-100 transition mt-2">
+                                    <span className="text-green-700 font-bold">{loading ? 'กำลังอ่าน...' : '📥 เลือกไฟล์ Excel'}</span>
                                     <input type="file" accept=".xlsx, .xls" onChange={handleExcelUpload} disabled={loading} className="hidden" />
                                 </label>
                             </div>
                             
-                            <div className="bg-white p-6 rounded-xl shadow-sm border">
-                                <h3 className="font-bold text-lg mb-4">{t.taskList}</h3>
-                                <div className="max-h-[500px] overflow-y-auto space-y-2 pr-2">
-                                    {tasks.map(task => (
-                                        <div key={task.TaskID} className="p-3 border rounded flex justify-between items-center text-sm bg-gray-50">
-                                            <div>
-                                                <div className="font-bold text-base text-gray-800">{task.Article}</div>
-                                                <div className="text-gray-500 mt-1">Aisle: {task.Aisle} | Bay: {task.Bay} | Dept: {task.Dept}</div>
+                            {/* ฝั่งขวา: Dashboard จัดกลุ่ม Aisle/Bay */}
+                            <div className="bg-white p-6 rounded-xl shadow-sm border lg:col-span-2">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-lg text-gray-800">{t.taskList} (Dashboard)</h3>
+                                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold">รวมทั้งหมด: {tasks.length} รายการ</span>
+                                </div>
+                                
+                                <div className="max-h-[600px] overflow-y-auto space-y-4 pr-2 hide-scroll">
+                                    {groupedTasks.length === 0 && <p className="text-center text-gray-500 py-8">ไม่มีรายการงานในระบบ</p>}
+                                    
+                                    {groupedTasks.map((group, idx) => {
+                                        const percent = group.total === 0 ? 0 : Math.round((group.done / group.total) * 100);
+                                        return (
+                                            <div key={idx} className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                                                <div className="bg-blue-50 p-3 flex justify-between items-center border-b border-blue-100">
+                                                    <div>
+                                                        <span className="font-bold text-blue-900 bg-blue-200 px-2 py-1 rounded text-xs mr-2">{group.dept}</span>
+                                                        <span className="font-bold text-gray-700 text-sm">Aisle: <span className="text-blue-700">{group.aisle}</span> | Bay: <span className="text-blue-700">{group.bay}</span></span>
+                                                    </div>
+                                                    <div className="text-xs font-bold bg-white px-2 py-1 rounded text-blue-800 shadow-sm border">
+                                                        นับแล้ว {group.done} / {group.total} ({percent}%)
+                                                    </div>
+                                                </div>
+                                                <div className="w-full bg-gray-200 h-1.5">
+                                                    <div className={`h-1.5 transition-all duration-500 ${percent === 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${percent}%` }}></div>
+                                                </div>
+                                                <div className="p-2 bg-gray-50 max-h-48 overflow-y-auto hide-scroll">
+                                                    {group.tasks.map(task => (
+                                                        <div key={task.TaskID} className="flex justify-between items-center p-2 border-b border-gray-100 last:border-0 text-sm hover:bg-gray-100 transition">
+                                                            <span className="text-gray-700">รหัส: {task.Article}</span>
+                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${task.Status === 'Pending' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-700'}`}>
+                                                                {task.Status}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${task.Status === 'Pending' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                                                {task.Status}
-                                            </span>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* FIX 2: หน้าต่างพรีวิวข้อมูลก่อนกดยืนยันสร้างงาน (จะแสดงเมื่อมีการเลือกไฟล์แล้วเท่านั้น) */}
                     {view === 'tasks' && previewTasks && (
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-blue-200">
                             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                                 <div>
                                     <h3 className="font-bold text-xl text-blue-800">พรีวิวข้อมูลเตรียมแจกงาน</h3>
-                                    <p className="text-sm text-gray-500">พบข้อมูลที่อ่านได้ทั้งหมด <span className="font-bold text-lg text-rose-600">{previewTasks.length}</span> รายการ</p>
+                                    <p className="text-sm text-gray-500">พบข้อมูล {status || <span className="font-bold text-lg text-rose-600">{previewTasks.length} รายการ</span>}</p>
                                 </div>
                                 <div className="flex gap-2 w-full md:w-auto">
-                                    <button onClick={() => setPreviewTasks(null)} disabled={loading} className="flex-1 md:flex-none px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300 transition">
-                                        ย้อนกลับ / ยกเลิก
-                                    </button>
-                                    <button onClick={confirmBulkUpload} disabled={loading} className="flex-1 md:flex-none px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition flex justify-center items-center">
+                                    <button onClick={() => setPreviewTasks(null)} disabled={loading} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-bold">ยกเลิก</button>
+                                    <button onClick={confirmBulkUpload} disabled={loading} className="px-6 py-3 bg-green-600 text-white rounded-lg font-bold flex justify-center items-center">
                                         {loading ? <div className="spinner border-l-white mr-2"></div> : '✅ ยืนยันการแจกงาน'}
                                     </button>
                                 </div>
@@ -561,8 +538,8 @@
                                     <thead className="bg-blue-100 text-blue-900 sticky top-0 shadow-sm">
                                         <tr>
                                             <th className="p-3">ลำดับ</th>
-                                            <th className="p-3">รหัสสินค้า (Article)</th>
-                                            <th className="p-3">แผนก (Dept)</th>
+                                            <th className="p-3">รหัสสินค้า</th>
+                                            <th className="p-3">แผนก</th>
                                             <th className="p-3">Aisle</th>
                                             <th className="p-3">Bay</th>
                                         </tr>
@@ -586,35 +563,42 @@
                     {view === 'report' && (
                         <div className="bg-white p-6 rounded-xl shadow-sm border">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-lg">{t.viewReport}</h3>
+                                <h3 className="font-bold text-lg">{t.viewReport} (Log)</h3>
                                 <button onClick={exportExcel} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-green-700 flex items-center gap-2">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                     {t.export}
                                 </button>
                             </div>
-                            <div className="overflow-x-auto rounded-lg border">
+                            <div className="overflow-x-auto rounded-lg border hide-scroll">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-gray-100 text-gray-600 border-b">
+                                    <thead className="bg-gray-100 text-gray-700 border-b">
                                         <tr>
-                                            <th className="p-3">Date</th>
-                                            <th className="p-3">Article</th>
-                                            <th className="p-3">Weight</th>
-                                            <th className="p-3">Emp</th>
-                                            <th className="p-3">Photo</th>
+                                            <th className="p-3">เวลาที่นับ</th>
+                                            <th className="p-3">แผนก</th>
+                                            <th className="p-3">Aisle / Bay</th>
+                                            <th className="p-3">สินค้า</th>
+                                            <th className="p-3">น้ำหนัก</th>
+                                            <th className="p-3">พนักงาน</th>
+                                            <th className="p-3">รูปภาพ</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {submissions.map((s, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50">
-                                                <td className="p-3 text-gray-500 whitespace-nowrap">{s.Date}</td>
-                                                <td className="p-3 font-bold text-gray-800">{s.Article}</td>
-                                                <td className="p-3 text-rose-600 font-bold">{s.Weight}</td>
-                                                <td className="p-3">{s.EmpID}</td>
-                                                <td className="p-3">
-                                                    {s.ImageURL && <a href={s.ImageURL} target="_blank" className="text-blue-600 hover:underline font-medium">ดูรูป</a>}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {submissions.map((s, idx) => {
+                                            const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
+                                            return (
+                                                <tr key={idx} className="hover:bg-gray-50">
+                                                    <td className="p-3 text-gray-500 whitespace-nowrap">{s.Date}</td>
+                                                    <td className="p-3 font-medium text-gray-800">{matchedTask.Dept || '-'}</td>
+                                                    <td className="p-3 text-blue-700 font-bold">{matchedTask.Aisle || '-'}/{matchedTask.Bay || '-'}</td>
+                                                    <td className="p-3 font-bold text-gray-800">{s.Article}</td>
+                                                    <td className="p-3 text-rose-600 font-bold">{s.Weight}</td>
+                                                    <td className="p-3">{s.EmpID}</td>
+                                                    <td className="p-3">
+                                                        {s.ImageURL && <a href={s.ImageURL} target="_blank" className="text-blue-600 hover:underline font-medium">ดูรูป</a>}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
