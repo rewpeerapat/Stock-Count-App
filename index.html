@@ -54,7 +54,10 @@
 
             const fetchGAS = async (payload) => {
                 const res = await fetch(GAS_URL, {
-                    method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' }
+                    method: 'POST', 
+                    body: JSON.stringify(payload), 
+                    // เปลี่ยนจาก application/json เป็น text/plain;charset=utf-8 เพื่อไม่ให้ Google บล็อก
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                 });
                 return res.json();
             };
