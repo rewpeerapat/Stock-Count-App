@@ -380,9 +380,13 @@
             const [previewTasks, setPreviewTasks] = useState(null);
             const [status, setStatus] = useState("");
 
-            // Filter วันที่
+            // Filters
             const [startDate, setStartDate] = useState('');
             const [endDate, setEndDate] = useState('');
+            const [filterDept, setFilterDept] = useState(''); // เพิ่ม State สำหรับกรองแผนก
+
+            // ดึงรายชื่อแผนกที่ไม่ซ้ำกันจากรายการงานทั้งหมดเพื่อใช้ใน Dropdown
+            const uniqueDepts = Array.from(new Set(tasks.map(task => task.Dept).filter(Boolean)));
 
             // โหลดข้อมูล โดยสามารถเลือกได้ว่าจะให้ขึ้น Spinner หรือไม่ (ใช้กับการ Refresh อัตโนมัติ)
             const loadData = async (isPolling = false) => {
@@ -488,20 +492,41 @@
             
             groupedTasks.sort((a, b) => a.dept.localeCompare(b.dept) || String(a.aisle).localeCompare(String(b.aisle)) || String(a.bay).localeCompare(String(b.bay)));
 
-            // กรองข้อมูล Submission ด้วยวันที่ (Date Filter)
+            // กรองข้อมูล Submission ด้วยวันที่และแผนก (Filter Logic)
             const filteredSubmissions = submissions.filter(s => {
-                if (!startDate && !endDate) return true;
-                
-                // ดึงเฉพาะส่วนวันที่ออกมา (สมมติว่าเป็น format 30-06-2026)
-                const sDate = s.Date ? String(s.Date).split(' ')[0] : ''; 
-                const parts = sDate.split('-');
-                if (parts.length !== 3) return true; // ถ้า format ผิดให้แสดงไปก่อน
-                
-                // แปลงเป็น YYYY-MM-DD เพื่อเปรียบเทียบ
-                const compareDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
-                
-                if (startDate && compareDate < new Date(startDate + "T00:00:00")) return false;
-                if (endDate && compareDate > new Date(endDate + "T23:59:59")) return false;
+                const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
+                const recordDept = matchedTask.Dept || s.Dept || "N/A";
+
+                // 1. ตรวจสอบเงื่อนไขแผนก
+                if (filterDept && filterDept !== '' && recordDept !== filterDept) {
+                    return false;
+                }
+
+                // 2. ตรวจสอบเงื่อนไขวันที่
+                if (startDate || endDate) {
+                    if (!s.Date) return false;
+                    
+                    const sDateStr = String(s.Date).trim().split(' ')[0]; // เอาเฉพาะส่วนวันที่
+                    let compareDate = null;
+
+                    // พยายามแปลงวันที่ให้ถูกต้อง ไม่ว่าจะมาในรูปแบบ DD-MM-YYYY หรือ YYYY-MM-DD หรือ DD/MM/YYYY
+                    if (sDateStr.includes('-')) {
+                        const parts = sDateStr.split('-');
+                        if (parts[0].length === 4) compareDate = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`); // YYYY-MM-DD
+                        else if (parts.length === 3) compareDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`); // DD-MM-YYYY
+                    } else if (sDateStr.includes('/')) {
+                        const parts = sDateStr.split('/');
+                        if (parts[0].length === 4) compareDate = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`); // YYYY/MM/DD
+                        else if (parts.length === 3) compareDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`); // DD/MM/YYYY
+                    } else {
+                        compareDate = new Date(sDateStr); // fallback
+                    }
+
+                    if (compareDate && !isNaN(compareDate.getTime())) {
+                        if (startDate && compareDate < new Date(startDate + "T00:00:00")) return false;
+                        if (endDate && compareDate > new Date(endDate + "T23:59:59")) return false;
+                    }
+                }
                 
                 return true;
             });
@@ -509,9 +534,11 @@
             const exportExcel = () => {
                 const dataToExport = filteredSubmissions.map(s => {
                     const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
+                    const datePart = s.Date ? String(s.Date).split(' ')[0] : '';
+                    const timePart = s.Date ? String(s.Date).split(' ')[1] || '' : '';
                     return {
-                        "Date": s.Date ? String(s.Date).split(' ')[0] : '',
-                        "Time": s.Date ? String(s.Date).split(' ')[1] : '',
+                        "Date": datePart,
+                        "Time": timePart,
                         "Dept": matchedTask.Dept || s.Dept || "N/A",
                         "Aisle": matchedTask.Aisle || "N/A",
                         "Bay": matchedTask.Bay || "N/A",
@@ -662,8 +689,17 @@
                             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                                 <h3 className="font-bold text-lg">{t.viewReport} (Log)</h3>
                                 
-                                {/* กล่องเลือกฟิลเตอร์วันที่ */}
+                                {/* กล่องเลือกฟิลเตอร์วันที่ และ แผนก */}
                                 <div className="flex items-center gap-2 flex-wrap">
+                                    <div className="flex items-center border rounded-lg bg-gray-50 px-2 py-1">
+                                        <span className="text-sm text-gray-500 mr-2">แผนก:</span>
+                                        <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="bg-transparent outline-none text-sm cursor-pointer">
+                                            <option value="">ทั้งหมด</option>
+                                            {uniqueDepts.map(dept => (
+                                                <option key={dept} value={dept}>{dept}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                     <div className="flex items-center border rounded-lg bg-gray-50 px-2 py-1">
                                         <span className="text-sm text-gray-500 mr-2">เริ่ม:</span>
                                         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent outline-none text-sm" />
@@ -672,7 +708,7 @@
                                         <span className="text-sm text-gray-500 mr-2">ถึง:</span>
                                         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent outline-none text-sm" />
                                     </div>
-                                    <button onClick={() => { setStartDate(''); setEndDate(''); }} className="text-sm text-gray-500 hover:text-red-500 px-2">ล้างตัวกรอง</button>
+                                    <button onClick={() => { setStartDate(''); setEndDate(''); setFilterDept(''); }} className="text-sm text-gray-500 hover:text-red-500 px-2">ล้างตัวกรอง</button>
                                 </div>
 
                                 <div className="flex gap-2">
@@ -690,6 +726,8 @@
                                 <table className="w-full text-sm text-left relative">
                                     <thead className="bg-gray-100 text-gray-700 border-b sticky top-0 shadow-sm z-10">
                                         <tr>
+                                            {/* แยกหัวตารางเป็น วันที่ และ เวลาที่นับ */}
+                                            <th className="p-3">วันที่</th>
                                             <th className="p-3">เวลาที่นับ</th>
                                             <th className="p-3">แผนก</th>
                                             <th className="p-3">Aisle / Bay</th>
@@ -701,14 +739,20 @@
                                     </thead>
                                     <tbody className="divide-y">
                                         {filteredSubmissions.length === 0 ? (
-                                            <tr><td colSpan="7" className="text-center p-8 text-gray-500">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>
+                                            <tr><td colSpan="8" className="text-center p-8 text-gray-500">ไม่พบข้อมูลในช่วงเวลาหรือแผนกที่เลือก</td></tr>
                                         ) : (
                                             filteredSubmissions.map((s, idx) => {
                                                 const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
+                                                
+                                                // แยกวันที่ และ เวลา ออกจากกันเพื่อแสดงผลในคนละช่อง
+                                                const datePart = s.Date ? String(s.Date).split(' ')[0] : '-';
+                                                const timePart = s.Date ? String(s.Date).split(' ')[1] || '-' : '-';
+
                                                 return (
                                                     <tr key={idx} className="hover:bg-gray-50">
-                                                        <td className="p-3 text-gray-500 whitespace-nowrap">{s.Date}</td>
-                                                        <td className="p-3 font-medium text-gray-800">{matchedTask.Dept || '-'}</td>
+                                                        <td className="p-3 text-gray-500 whitespace-nowrap">{datePart}</td>
+                                                        <td className="p-3 text-gray-500 whitespace-nowrap">{timePart}</td>
+                                                        <td className="p-3 font-medium text-gray-800">{matchedTask.Dept || s.Dept || '-'}</td>
                                                         <td className="p-3 text-blue-700 font-bold">{matchedTask.Aisle || '-'}/{matchedTask.Bay || '-'}</td>
                                                         <td className="p-3 font-bold text-gray-800">{s.Article}</td>
                                                         <td className="p-3 text-rose-600 font-bold">{s.Weight}</td>
