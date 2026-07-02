@@ -29,7 +29,7 @@
         // ==========================================
         // ⚠️ นำ URL จาก Google Apps Script มาใส่ตรงนี้
         // ==========================================
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbymvBvhsoyC0kL2Yyx0HsPHTfHJHpwU8dozjF2Xa0mL9FJIuH2kq_n7rlc9uWNWyxD9/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwKRHavk6UqP9Fzk-vNvTR8PGSen8irT981-rQJvTXhcLUjCZ0cgedtuTIfQ9N_DT3D/exec";
 
         const dict = {
             th: {
@@ -506,7 +506,7 @@
                 if (startDate || endDate) {
                     if (!s.Date) return false;
                     
-                    const sDateStr = String(s.Date).trim().split(' ')[0]; // เอาเฉพาะส่วนวันที่
+                    const sDateStr = String(s.Date).trim(); // เอาเฉพาะส่วนวันที่
                     let compareDate = null;
 
                     // พยายามแปลงวันที่ให้ถูกต้อง ไม่ว่าจะมาในรูปแบบ DD-MM-YYYY หรือ YYYY-MM-DD หรือ DD/MM/YYYY
@@ -534,8 +534,8 @@
             const exportExcel = () => {
                 const dataToExport = filteredSubmissions.map(s => {
                     const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
-                    const datePart = s.Date ? String(s.Date).split(' ')[0] : '';
-                    const timePart = s.Date ? String(s.Date).split(' ')[1] || '' : '';
+                    const datePart = s.Date || '-';
+                    const timePart = s.Time || '-';
                     return {
                         "Date": datePart,
                         "Time": timePart,
@@ -745,8 +745,8 @@
                                                 const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
                                                 
                                                 // แยกวันที่ และ เวลา ออกจากกันเพื่อแสดงผลในคนละช่อง
-                                                const datePart = s.Date ? String(s.Date).split(' ')[0] : '-';
-                                                const timePart = s.Date ? String(s.Date).split(' ')[1] || '-' : '-';
+                                                const datePart = s.Date || '-';
+                                                const timePart = s.Time || '-';
 
                                                 return (
                                                     <tr key={idx} className="hover:bg-gray-50">
