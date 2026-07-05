@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stock Count System</title>
+    <title>WeighLess - Smart Inventory</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -14,12 +14,12 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
-        .spinner { border: 3px solid rgba(0,0,0,0.1); border-left-color: #e11d48; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
+        .spinner { border: 3px solid rgba(0,0,0,0.1); border-left-color: #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* ซ่อน Scrollbar แต่อยู่ให้เลื่อนได้ */
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        .ai-glow { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); border: 2px solid #3b82f6; }
     </style>
 </head>
 <body>
@@ -27,45 +27,53 @@
 
     <script type="text/babel">
         // ==========================================
-        // ⚠️ นำ URL จาก Google Apps Script มาใส่ตรงนี้
+        // ⚠️ นำ URL จาก Google Apps Script (ตอนกด Deploy) มาใส่ตรงนี้
         // ==========================================
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwKRHavk6UqP9Fzk-vNvTR8PGSen8irT981-rQJvTXhcLUjCZ0cgedtuTIfQ9N_DT3D/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyVEK_BhNN2vLizoZ_4MBMz6Br45unfL-fZkE786e-2gQy-0aLkoyDSudoyWQZdfpvi/exec";
 
         const dict = {
             th: {
-                sysName: "ระบบจัดการสต็อก", login: "เข้าสู่ระบบ", register: "สมัครสมาชิก", empId: "รหัสพนักงาน", pass: "รหัสผ่าน",
+                sysName: "WeighLess Inventory", login: "เข้าสู่ระบบ", register: "สมัครสมาชิก", empId: "รหัสพนักงาน", pass: "รหัสผ่าน",
                 name: "ชื่อ-นามสกุล", dept: "แผนก", btnLogin: "เข้าสู่ระบบ", btnReg: "สมัครบัญชีใหม่", logout: "ออกจากระบบ", 
                 role_Admin: "ผู้ดูแลระบบ", role_Supervisor: "หัวหน้างาน", role_Staff: "พนักงาน",
                 createTask: "มอบหมายงานใหม่", article: "รหัสสินค้า", aisle: "Aisle", bay: "Bay", btnCreate: "สร้างงาน",
-                taskList: "ความคืบหน้าการนับสต็อก", status: "สถานะ", viewReport: "รายงานและประวัติการนับ", export: "Export Excel",
-                myTasks: "งานของฉัน", countTarget: "เป้าหมายการนับ", weight: "น้ำหนัก (กิโลกรัม)", 
-                takePhoto: "📸 ถ่ายภาพสินค้า", retakePhoto: "📸 ถ่ายภาพใหม่", btnSubmit: "บันทึกข้อมูล",
+                taskList: "ความคืบหน้าการนับสต็อก", viewReport: "รายงาน (Log)", export: "Export Excel",
+                myTasks: "งานที่ต้องทำ", countTarget: "เป้าหมายการนับ", weight: "น้ำหนัก (กิโลกรัม)", 
+                takePhoto: "📸 ถ่ายภาพหลักฐาน", retakePhoto: "📸 ถ่ายภาพใหม่", btnSubmit: "บันทึกเข้าระบบ",
                 noTask: "ไม่มีงานค้างอยู่ในขณะนี้", pending: "รอดำเนินการ", done: "เสร็จสิ้น",
-                scanToVerify: "สแกน/กรอก รหัสสินค้าเพื่อยืนยัน", lookupBtn: "ค้นหา", productFound: "ชื่อสินค้า", mismatchWarn: "รหัสสินค้าไม่ตรงกับงานที่ได้รับมอบหมาย!"
+                scanToVerify: "กรอกรหัส หรือ สแกนด้วยกล้อง", lookupBtn: "ค้นหา", productFound: "สินค้าที่พบ", mismatchWarn: "รหัสสินค้าไม่ตรงกับงานที่ได้รับมอบหมาย!",
+                searchPlaceholder: "🔍 ค้นหารหัส / ชื่อสินค้า..."
+            },
+            en: {
+                sysName: "WeighLess Inventory", login: "Login", register: "Register", empId: "Emp ID", pass: "Password",
+                name: "Full Name", dept: "Department", btnLogin: "Sign In", btnReg: "Create Account", logout: "Logout", 
+                role_Admin: "Admin", role_Supervisor: "Supervisor", role_Staff: "Staff",
+                createTask: "Assign Task", article: "Article/PLU", aisle: "Aisle", bay: "Bay", btnCreate: "Create Task",
+                taskList: "Counting Progress", viewReport: "Report Log", export: "Export Excel",
+                myTasks: "My Tasks", countTarget: "Count Target", weight: "Weight (kg)", 
+                takePhoto: "📸 Take Evidence Photo", retakePhoto: "📸 Retake Photo", btnSubmit: "Save to System",
+                noTask: "No pending tasks", pending: "Pending", done: "Done",
+                scanToVerify: "Enter PLU or Scan", lookupBtn: "Search", productFound: "Product Found", mismatchWarn: "Article mismatch with assigned task!",
+                searchPlaceholder: "🔍 Search PLU / Name..."
             }
         };
 
         const { useState, useEffect, useRef } = React;
 
-        // ฟังก์ชันย่อรูปภาพ (Image Compression) เพื่อความรวดเร็ว
         const compressImage = (base64, maxWidth = 800, quality = 0.7) => {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 const img = new Image();
                 img.src = base64;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const scaleSize = maxWidth / img.width;
-                    if (scaleSize < 1) {
-                        canvas.width = maxWidth;
-                        canvas.height = img.height * scaleSize;
-                    } else {
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                    }
+                    if (scaleSize < 1) { canvas.width = maxWidth; canvas.height = img.height * scaleSize; } 
+                    else { canvas.width = img.width; canvas.height = img.height; }
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     resolve(canvas.toDataURL('image/jpeg', quality));
                 };
+                img.onerror = reject;
             });
         };
 
@@ -75,28 +83,27 @@
             const t = dict[lang];
 
             const fetchGAS = async (payload) => {
-                const res = await fetch(GAS_URL, {
-                    method: 'POST', 
-                    body: JSON.stringify(payload), 
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-                });
+                const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
                 return res.json();
             };
 
-            const verifyArticleMatch = (scanned, assigned) => {
-                return String(scanned).trim() === String(assigned).trim();
-            };
+            const verifyArticleMatch = (scanned, assigned) => { return String(scanned).trim() === String(assigned).trim(); };
 
             if (!user) return <AuthScreen t={t} lang={lang} setLang={setLang} setUser={setUser} fetchGAS={fetchGAS} />;
 
             return (
-                <div className="min-h-screen bg-gray-50 flex flex-col">
-                    <header className="bg-rose-700 text-white p-4 flex justify-between items-center shadow-md">
+                <div className="min-h-screen bg-slate-50 flex flex-col">
+                    <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
                         <div>
-                            <h1 className="text-xl font-bold">{t.sysName}</h1>
-                            <p className="text-sm opacity-80">{user.name} ({t['role_'+user.role]} - {user.dept})</p>
+                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">{t.sysName}</h1>
+                            <p className="text-sm opacity-80">{user.name} ({user.dept})</p>
                         </div>
-                        <button onClick={() => setUser(null)} className="text-sm bg-rose-900 px-3 py-1 rounded hover:bg-rose-950">{t.logout}</button>
+                        <div className="flex gap-2 items-center">
+                            <button onClick={() => setLang(lang === 'th' ? 'en' : 'th')} className="text-xs font-bold uppercase border border-slate-600 rounded px-2 py-1 text-slate-300 hover:bg-slate-700">
+                                {lang === 'th' ? 'EN' : 'TH'}
+                            </button>
+                            <button onClick={() => setUser(null)} className="text-sm bg-slate-800 px-3 py-1 rounded border border-slate-700 hover:bg-slate-700 transition">{t.logout}</button>
+                        </div>
                     </header>
                     <main className="flex-1 p-4 max-w-6xl w-full mx-auto">
                         {(user.role === 'Admin' || user.role === 'Supervisor') 
@@ -117,52 +124,55 @@
             const [loading, setLoading] = useState(false);
 
             const handleSubmit = async (e) => {
-                e.preventDefault();
-                setLoading(true);
+                e.preventDefault(); setLoading(true);
                 try {
                     const res = await fetchGAS({ action: isReg ? 'register' : 'login', ...form });
-                    if (res.success) {
-                        if (isReg) { alert(res.message); setIsReg(false); } 
+                    if (res.success) { 
+                        if(isReg) { alert(res.message); setIsReg(false); } 
                         else { setUser(res.user); }
                     } else alert(res.message);
-                } catch (err) { alert("เกิดข้อผิดพลาดในการเชื่อมต่อ (Network Error)"); }
-                setLoading(false);
+                } catch (err) { alert("Network Error"); }
+                finally { setLoading(false); }
             };
 
             return (
-                <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-                    <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6">
-                        <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">{isReg ? t.register : t.login}</h2>
-                        
+                <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 relative">
+                    <button onClick={() => setLang(lang === 'th' ? 'en' : 'th')} className="absolute top-4 right-4 text-xs font-bold uppercase border rounded px-3 py-1 bg-white text-slate-600 hover:bg-slate-200 shadow-sm">
+                        {lang === 'th' ? 'EN' : 'TH'}
+                    </button>
+                    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-emerald-500 mb-2">WeighLess</h2>
+                            <p className="text-slate-500 font-medium">{isReg ? t.register : "Smart Inventory Ecosystem"}</p>
+                        </div>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <input required placeholder={t.empId} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500"
+                            <input required placeholder={t.empId} className="w-full p-4 border rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 transition"
                                 value={form.empId} onChange={e => setForm({...form, empId: e.target.value})} />
                             
-                            {isReg && <input required placeholder={t.name} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500"
+                            {isReg && <input required placeholder={t.name} className="w-full p-4 border rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 transition"
                                 value={form.name} onChange={e => setForm({...form, name: e.target.value})} />}
                             
                             {isReg && 
-                                <select required className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500 bg-white"
+                                <select required className="w-full p-4 border rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 transition"
                                     value={form.dept} onChange={e => setForm({...form, dept: e.target.value})}>
-                                    <option value="" disabled>-- เลือกแผนก --</option>
-                                    <option value="เบเกอรี">เบเกอรี</option>
-                                    <option value="ผักและผลไม้">ผักและผลไม้</option>
-                                    <option value="อาหารทะเล">อาหารทะเล</option>
-                                    <option value="เนื้อสัตว์">เนื้อสัตว์</option>
-                                    <option value="อาหารแช่แข็ง">อาหารแช่แข็ง</option>
+                                    <option value="" disabled>-- {t.dept} --</option>
+                                    <option value="เบเกอรี">เบเกอรี (Bakery)</option>
+                                    <option value="ผักและผลไม้">ผักและผลไม้ (Produce)</option>
+                                    <option value="อาหารทะเล">อาหารทะเล (Seafood)</option>
+                                    <option value="เนื้อสัตว์">เนื้อสัตว์ (Meat)</option>
                                 </select>
                             }
 
-                            <input required type="password" placeholder={t.pass} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-rose-500"
+                            <input required type="password" placeholder={t.pass} className="w-full p-4 border rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 transition"
                                 value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
                             
-                            <button disabled={loading} type="submit" className="w-full bg-rose-600 text-white p-3 rounded-lg font-bold hover:bg-rose-700 flex justify-center items-center">
+                            <button disabled={loading} type="submit" className="w-full bg-blue-600 text-white p-4 rounded-xl font-bold text-lg hover:bg-blue-700 shadow-md flex justify-center items-center transition disabled:opacity-50">
                                 {loading ? <div className="spinner border-l-white"></div> : (isReg ? t.btnReg : t.btnLogin)}
                             </button>
                         </form>
-                        <div className="mt-4 text-center">
-                            <button type="button" onClick={() => setIsReg(!isReg)} className="text-sm text-rose-600 hover:underline">
-                                {isReg ? "มีบัญชีอยู่แล้ว? เข้าสู่ระบบ" : "พนักงานใหม่? สมัครสมาชิก"}
+                        <div className="mt-6 text-center">
+                            <button type="button" onClick={() => setIsReg(!isReg)} className="text-sm text-blue-600 font-medium hover:underline">
+                                {isReg ? (lang === 'th' ? "มีบัญชีแล้ว? เข้าสู่ระบบ" : "Have an account? Login") : (lang === 'th' ? "พนักงานใหม่? สมัครบัญชี" : "New staff? Register")}
                             </button>
                         </div>
                     </div>
@@ -171,7 +181,7 @@
         }
 
         // ==========================================
-        // แดชบอร์ด พนักงานนับสต็อก (Staff)
+        // แดชบอร์ด พนักงาน (Staff Panel & AI Copilot)
         // ==========================================
         function StaffPanel({ user, t, fetchGAS, verifyMatch, compressImage }) {
             const [tasks, setTasks] = useState([]);
@@ -180,40 +190,40 @@
 
             const [scanArticle, setScanArticle] = useState('');
             const [productDetail, setProductDetail] = useState(null);
-            const [isLookupLoading, setIsLookupLoading] = useState(false);
+            
             const [isScannerOpen, setIsScannerOpen] = useState(false);
+            const [isAILoading, setIsAILoading] = useState(false);
+            const [aiPredictions, setAiPredictions] = useState(null);
+            const aiFileInputRef = useRef(null);
 
             const [weight, setWeight] = useState('');
             const [imgBase64, setImgBase64] = useState('');
 
             useEffect(() => { loadTasks(); }, []);
-
+            
             const loadTasks = async () => {
                 setLoading(true);
-                const res = await fetchGAS({ action: 'getTasks', role: user.role, dept: user.dept });
-                // กรองเฉพาะงานที่ยังไม่เสร็จ (Pending)
-                if(res.success) setTasks(res.tasks.filter(t => t.Status !== 'Done'));
+                try {
+                    const res = await fetchGAS({ action: 'getTasks', role: user.role, dept: user.dept });
+                    if(res.success) setTasks(res.tasks.filter(t => t.Status !== 'Done'));
+                } catch(e) {}
                 setLoading(false);
             };
 
             const resetState = () => {
-                setActiveTask(null); setScanArticle(''); setProductDetail(null); setWeight(''); setImgBase64(''); setIsScannerOpen(false);
+                setActiveTask(null); setScanArticle(''); setProductDetail(null); setWeight(''); 
+                setImgBase64(''); setAiPredictions(null); setIsAILoading(false); setIsScannerOpen(false);
             };
 
             const handleLookup = async (manualArticle = scanArticle) => {
                 if(!manualArticle) return;
-                setIsLookupLoading(true);
+                setLoading(true);
                 const res = await fetchGAS({ action: 'lookup', article: manualArticle.trim() });
-                if(res.success) {
-                    setProductDetail(res.product);
-                } else {
-                    alert(res.message);
-                    setProductDetail(null);
-                }
-                setIsLookupLoading(false);
+                if(res.success) { setProductDetail(res.product); setAiPredictions(null); } 
+                else { alert(res.message); setProductDetail(null); }
+                setLoading(false);
             };
 
-            // ระบบกล้องสแกน Html5Qrcode
             useEffect(() => {
                 let html5QrCode;
                 if(isScannerOpen) {
@@ -227,57 +237,71 @@
                             html5QrCode.stop().then(() => setIsScannerOpen(false)).catch(() => setIsScannerOpen(false));
                         },
                         (errorMessage) => {}
-                    ).catch((err) => {
-                        alert("ไม่สามารถเปิดกล้องได้: กรุณาอนุญาตการเข้าถึงกล้อง (Camera Permission)");
-                        setIsScannerOpen(false);
-                    });
+                    ).catch((err) => { alert("Camera Error"); setIsScannerOpen(false); });
                 }
-                return () => {
-                    if (html5QrCode) {
-                        try { html5QrCode.stop().catch(e => console.log(e)); } catch(e) {}
-                    }
-                };
+                return () => { if (html5QrCode) { try { html5QrCode.stop().catch(e => console.log(e)); } catch(e) {} } };
             }, [isScannerOpen]);
 
-            const handleFile = (e) => {
+            const handleAICopilotScan = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
+                setIsAILoading(true);
+                setAiPredictions(null);
+                
                 const reader = new FileReader();
-                reader.onloadend = () => setImgBase64(reader.result);
+                reader.onloadend = async () => {
+                    try {
+                        const base64 = reader.result;
+                        setImgBase64(base64); 
+                        
+                        const compressed = await compressImage(base64, 600, 0.6); 
+                        const res = await fetchGAS({ action: 'analyzeImage', imageBase64: compressed });
+                        
+                        if (res.success) { setAiPredictions(res.predictions); } 
+                        else { alert(res.message); }
+                    } catch (error) {
+                        alert("AI Connection Failed / Error processing image");
+                    } finally {
+                        setIsAILoading(false); 
+                    }
+                };
                 reader.readAsDataURL(file);
+                e.target.value = null; 
             };
 
-            // อัปเดต: Optimistic UI & Image Compression
+            const selectAIPrediction = (prediction) => {
+                setScanArticle(prediction.Article);
+                setProductDetail({ Article: prediction.Article, Item: prediction.Item });
+                setAiPredictions(null);
+            };
+
             const submitTask = async () => {
-                if(!weight || !imgBase64) return alert("กรุณากรอกน้ำหนักและถ่ายรูป");
+                if(!weight) return alert("กรุณากรอกน้ำหนัก / Please enter weight");
+                if(!imgBase64) return alert("กรุณาถ่ายรูป / Please take photo");
+                
                 setLoading(true);
+                const prevTasks = [...tasks]; 
+                const submittedTaskId = activeTask.TaskID;
+                const submittedArticle = activeTask.Article;
                 
                 try {
-                    // 1. ย่อขนาดรูปให้เล็กลงก่อนส่ง
-                    const compressedImg = await compressImage(imgBase64);
-                    const submittedTaskId = activeTask.TaskID;
-                    const submittedArticle = activeTask.Article;
-                    
-                    // 2. เคลียร์หน้าจอทันที เพื่อให้พนักงานรู้สึกว่าทำงานเร็ว (Optimistic Update)
-                    alert(t.done);
                     setTasks(prev => prev.filter(task => task.TaskID !== submittedTaskId));
                     resetState();
 
-                    // 3. สั่งส่งข้อมูลทำงานอยู่เบื้องหลัง (Background Fetch)
-                    fetchGAS({
+                    const compressedImg = await compressImage(imgBase64);
+                    const res = await fetchGAS({
                         action: 'submitCount', taskId: submittedTaskId, empId: user.empId, 
                         article: submittedArticle, weight: weight, imageBase64: compressedImg
-                    }).then(res => {
-                        if(!res.success) {
-                            alert("แจ้งเตือน: เกิดข้อผิดพลาดในการบันทึกข้อมูลรหัส " + submittedArticle + " กรุณาตรวจสอบอีกครั้ง");
-                            loadTasks(); // รีโหลดข้อมูลถ้าเกิด Error
-                        }
                     });
-                    
-                } catch(e) {
-                    alert("เกิดข้อผิดพลาดในการประมวลผลรูปภาพ");
-                } finally {
-                    setLoading(false);
+
+                    if(!res.success) throw new Error(res.message);
+
+                } catch(e) { 
+                    alert("⚠️ Network Error: ไม่สามารถบันทึกได้ ระบบจะนำงานกลับมาให้ทำรายการใหม่");
+                    setTasks(prevTasks); 
+                } finally { 
+                    setLoading(false); 
+                    loadTasks(); 
                 }
             };
 
@@ -285,60 +309,112 @@
                 const isMismatch = productDetail && !verifyMatch(productDetail.Article, activeTask.Article);
 
                 return (
-                    <div className="bg-white p-6 rounded-xl shadow-sm border max-w-lg mx-auto">
-                        <button onClick={resetState} className="text-gray-500 mb-4 font-bold">&larr; กลับ</button>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-lg mx-auto">
+                        <button onClick={resetState} className="text-slate-500 mb-4 font-bold flex items-center hover:text-slate-700 transition">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                            Back
+                        </button>
                         
-                        <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100">
-                            <h2 className="text-lg font-bold text-blue-900">{t.countTarget}: <span className="text-xl">{activeTask.Article}</span></h2>
-                            <p className="text-sm text-blue-800 mt-1">Aisle: <b>{activeTask.Aisle}</b> | Bay: <b>{activeTask.Bay}</b></p>
+                        <div className="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-200 shadow-inner">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t.countTarget}</p>
+                                    <h2 className="text-xl font-bold text-slate-800">{activeTask.Article}</h2>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Aisle / Bay</p>
+                                    <p className="font-bold text-blue-600">{activeTask.Aisle} / {activeTask.Bay}</p>
+                                </div>
+                            </div>
                         </div>
                         
-                        <label className="block text-sm font-bold text-gray-700 mb-2">{t.scanToVerify}</label>
-                        
+                        <label className="block text-sm font-bold text-slate-700 mb-2">{t.scanToVerify}</label>
                         <div className="flex gap-2 mb-4">
-                            <input type="text" placeholder={t.article} className="flex-1 p-3 border-2 rounded-lg outline-none focus:border-rose-500 text-lg"
+                            <input type="text" placeholder="PLU Code" className="flex-1 p-3 border-2 rounded-xl outline-none focus:border-blue-500 text-lg bg-slate-50 focus:bg-white transition"
                                 value={scanArticle} onChange={e => setScanArticle(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleLookup(scanArticle)} />
                             
-                            <button onClick={() => setIsScannerOpen(!isScannerOpen)} className="bg-rose-600 text-white px-4 rounded-lg flex items-center justify-center text-xl">
+                            <button onClick={() => setIsScannerOpen(!isScannerOpen)} className="bg-blue-600 text-white px-4 rounded-xl flex items-center justify-center text-xl hover:bg-blue-700">
                                 📷
                             </button>
 
-                            <button onClick={() => handleLookup(scanArticle)} disabled={isLookupLoading} className="bg-gray-800 text-white px-4 rounded-lg font-bold flex items-center justify-center min-w-[80px]">
-                                {isLookupLoading ? <div className="spinner border-l-white"></div> : t.lookupBtn}
+                            <button onClick={() => handleLookup(scanArticle)} disabled={loading} className="bg-slate-800 text-white px-4 rounded-xl font-bold flex items-center justify-center min-w-[80px]">
+                                {loading ? <div className="spinner border-l-white"></div> : t.lookupBtn}
                             </button>
                         </div>
 
-                        {/* กล่องแสดงกล้อง */}
                         {isScannerOpen && (
-                            <div className="w-full mb-4">
-                                <div id="reader" className="w-full rounded overflow-hidden shadow bg-black min-h-[250px]"></div>
-                                <button onClick={() => setIsScannerOpen(false)} className="w-full mt-2 bg-red-100 text-red-600 p-2 rounded font-bold hover:bg-red-200">
-                                    ❌ ปิดกล้อง
+                            <div className="w-full mb-4 animate-[fadeIn_0.3s_ease-in-out]">
+                                <div id="reader" className="w-full rounded-xl overflow-hidden shadow bg-black min-h-[250px]"></div>
+                                <button onClick={() => setIsScannerOpen(false)} className="w-full mt-2 bg-red-50 text-red-600 p-3 rounded-xl font-bold hover:bg-red-100 transition border border-red-200">
+                                    ❌ Close Scanner
                                 </button>
                             </div>
                         )}
 
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase">AI COPILOT</span>
+                            </div>
+                            <input type="file" accept="image/*" capture="environment" onChange={handleAICopilotScan} ref={aiFileInputRef} className="hidden" />
+                            <button 
+                                onClick={() => aiFileInputRef.current.click()}
+                                disabled={isAILoading}
+                                className={`w-full py-4 rounded-xl font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition flex justify-center items-center gap-2 ${isAILoading ? 'opacity-70' : ''}`}
+                            >
+                                {isAILoading ? (
+                                    <><div className="spinner border-l-blue-700 border-2"></div> Processing Image...</>
+                                ) : (
+                                    <><span>🤖</span> Auto-Detect with AI Copilot</>
+                                )}
+                            </button>
+
+                            {aiPredictions && (
+                                <div className="mt-3 space-y-2 ai-glow rounded-xl p-3 bg-white">
+                                    <p className="text-xs font-bold text-blue-600 mb-2 flex items-center gap-1">✨ AI Suggested Items:</p>
+                                    {aiPredictions.map((pred, idx) => (
+                                        <div key={idx} onClick={() => selectAIPrediction(pred)} className="p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition flex justify-between items-center group">
+                                            <div>
+                                                <p className="font-bold text-slate-800 group-hover:text-blue-700">{pred.Item}</p>
+                                                <p className="text-xs text-slate-500">PLU: {pred.Article}</p>
+                                            </div>
+                                            <div className="flex flex-col items-end">
+                                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${pred.confidence > 0.9 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                    {(pred.confidence * 100).toFixed(0)}% Match
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
                         {productDetail && (
-                            <div className={`p-4 rounded-lg mb-6 border ${isMismatch ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
-                                <p className="text-sm text-gray-600 mb-1">{t.productFound}:</p>
-                                <p className={`font-bold text-lg ${isMismatch ? 'text-red-700' : 'text-green-700'}`}>{productDetail.Item}</p>
-                                {isMismatch && <p className="text-red-600 text-sm font-bold mt-2">⚠️ {t.mismatchWarn}</p>}
+                            <div className={`p-4 rounded-xl mb-6 border ${isMismatch ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                                <p className="text-xs text-slate-500 uppercase font-bold mb-1">{t.productFound}</p>
+                                <p className={`font-bold text-xl ${isMismatch ? 'text-red-700' : 'text-emerald-700'}`}>{productDetail.Item}</p>
+                                {isMismatch && <p className="text-red-600 text-sm font-bold mt-2 flex items-center gap-1">⚠️ {t.mismatchWarn}</p>}
                             </div>
                         )}
 
                         {productDetail && (
                             <div className="animate-[fadeIn_0.3s_ease-in-out]">
-                                <input type="number" step="0.01" placeholder={t.weight} className="w-full p-4 border-2 rounded-lg text-xl mb-4 focus:border-rose-500 outline-none"
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Weight Data (kg)</label>
+                                <input type="number" step="0.01" placeholder={t.weight} className="w-full p-4 border-2 rounded-xl text-xl mb-4 focus:border-blue-500 outline-none bg-slate-50 focus:bg-white transition text-center font-bold"
                                     value={weight} onChange={e => setWeight(e.target.value)} />
 
-                                <label className="block w-full text-center p-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 mb-4 transition">
-                                    <span className="text-gray-600 font-medium text-lg">{imgBase64 ? t.retakePhoto : t.takePhoto}</span>
-                                    <input type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
+                                <label className="block w-full text-center p-4 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-50 mb-6 transition">
+                                    <span className="text-slate-600 font-bold flex flex-col items-center gap-2">
+                                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                        {imgBase64 ? t.retakePhoto : t.takePhoto}
+                                    </span>
+                                    <input type="file" accept="image/*" capture="environment" onChange={(e) => {
+                                        const file = e.target.files[0]; if(!file) return;
+                                        const reader = new FileReader(); reader.onloadend = () => setImgBase64(reader.result); reader.readAsDataURL(file);
+                                    }} className="hidden" />
                                 </label>
+                                {imgBase64 && <img src={imgBase64} alt="Preview" className="w-full h-40 object-cover rounded-xl mb-6 shadow-sm border" />}
 
-                                {imgBase64 && <img src={imgBase64} alt="Preview" className="w-full h-48 object-cover rounded-lg mb-4 shadow-sm" />}
-
-                                <button onClick={submitTask} disabled={loading || isMismatch} className="w-full bg-green-600 text-white p-4 rounded-lg font-bold text-lg hover:bg-green-700 flex justify-center disabled:opacity-50">
+                                <button onClick={submitTask} disabled={loading || isMismatch} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-black text-lg hover:bg-emerald-700 shadow-md flex justify-center disabled:opacity-50 transition">
                                     {loading ? <div className="spinner border-l-white"></div> : t.btnSubmit}
                                 </button>
                             </div>
@@ -349,17 +425,20 @@
 
             return (
                 <div className="max-w-lg mx-auto">
-                    <h2 className="text-lg font-bold mb-4 text-gray-700">{t.myTasks} ({user.dept})</h2>
-                    {loading && <p>Loading...</p>}
-                    {!loading && tasks.length === 0 && <div className="p-8 text-center bg-white rounded-xl shadow-sm text-gray-500">{t.noTask}</div>}
+                    <h2 className="text-xl font-bold mb-4 text-slate-800 border-b pb-2">{t.myTasks} ({user.dept})</h2>
+                    {loading && <p className="text-center text-slate-500 my-8">Loading Data...</p>}
+                    {!loading && tasks.length === 0 && <div className="p-8 text-center bg-white rounded-2xl shadow-sm text-slate-500 border border-slate-200">✅ {t.noTask}</div>}
                     <div className="grid gap-3">
                         {tasks.map(task => (
-                            <div key={task.TaskID} onClick={() => setActiveTask(task)} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-rose-500 cursor-pointer hover:shadow-md transition flex justify-between items-center">
+                            <div key={task.TaskID} onClick={() => setActiveTask(task)} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500 cursor-pointer hover:shadow-md transition flex justify-between items-center group">
                                 <div>
-                                    <div className="font-bold text-lg">{t.article}: {task.Article}</div>
-                                    <div className="text-sm text-gray-500">Aisle: {task.Aisle} | Bay: {task.Bay}</div>
+                                    <div className="font-bold text-lg text-slate-800 group-hover:text-blue-700 transition">PLU: {task.Article}</div>
+                                    <div className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+                                        <span className="bg-slate-100 px-2 py-0.5 rounded">Aisle {task.Aisle}</span> 
+                                        <span className="bg-slate-100 px-2 py-0.5 rounded">Bay {task.Bay}</span>
+                                    </div>
                                 </div>
-                                <div className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold">เริ่มนับ &rarr;</div>
+                                <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-sm font-bold shadow-sm">Start &rarr;</div>
                             </div>
                         ))}
                     </div>
@@ -368,7 +447,7 @@
         }
 
         // ==========================================
-        // แดชบอร์ด หัวหน้างาน (Admin / Supervisor)
+        // แดชบอร์ด หัวหน้างาน (Admin & Supervisor) + ระบบค้นหา
         // ==========================================
         function SupervisorPanel({ user, t, fetchGAS }) {
             const [view, setView] = useState('tasks');
@@ -378,83 +457,58 @@
             const [loading, setLoading] = useState(false);
             
             const [previewTasks, setPreviewTasks] = useState(null);
-            const [status, setStatus] = useState("");
-
-            // Filters
+            
+            // Filters & Search
             const [startDate, setStartDate] = useState('');
             const [endDate, setEndDate] = useState('');
-            const [filterDept, setFilterDept] = useState(''); // เพิ่ม State สำหรับกรองแผนก
+            const [filterDept, setFilterDept] = useState('');
+            const [searchQuery, setSearchQuery] = useState(''); 
+            const [taskSearchQuery, setTaskSearchQuery] = useState(''); 
 
-            // ดึงรายชื่อแผนกที่ไม่ซ้ำกันจากรายการงานทั้งหมดเพื่อใช้ใน Dropdown
             const uniqueDepts = Array.from(new Set(tasks.map(task => task.Dept).filter(Boolean)));
 
-            // โหลดข้อมูล โดยสามารถเลือกได้ว่าจะให้ขึ้น Spinner หรือไม่ (ใช้กับการ Refresh อัตโนมัติ)
             const loadData = async (isPolling = false) => {
                 if (!isPolling) setLoading(true);
-                
                 const [resTasks, resSubs] = await Promise.all([
                     fetchGAS({ action: 'getTasks', role: user.role, dept: user.dept }),
                     view === 'report' ? fetchGAS({ action: 'getSubmissions' }) : Promise.resolve({ success: true, submissions: [] })
                 ]);
-                
                 if (resTasks.success) setTasks(resTasks.tasks);
                 if (resSubs.success && view === 'report') setSubmissions(resSubs.submissions);
-                
                 if (!isPolling) setLoading(false);
             };
 
-            // ตั้งค่า Real-time sync ให้ข้อมูลอัปเดตเองทุกๆ 10 วินาที
             useEffect(() => { 
                 loadData(); 
-                const interval = setInterval(() => {
-                    loadData(true);
-                }, 10000); 
+                const interval = setInterval(() => { loadData(true); }, 10000); 
                 return () => clearInterval(interval);
             }, [view]);
 
             const handleCreate = async (e) => {
-                e.preventDefault();
-                setLoading(true);
+                e.preventDefault(); setLoading(true);
                 const res = await fetchGAS({ action: 'createTask', ...form });
-                if(res.success) { 
-                    alert(res.message); 
-                    setForm({...form, article: '', aisle: '', bay: ''}); 
-                    loadData(); 
-                }
+                if(res.success) { alert(res.message); setForm({...form, article: '', aisle: '', bay: ''}); loadData(); }
                 setLoading(false);
             };
 
             const handleExcelUpload = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                
                 const reader = new FileReader();
                 reader.onload = async (evt) => {
                     try {
-                        const data = evt.target.result;
-                        const workbook = XLSX.read(data, { type: 'binary' });
-                        const firstSheet = workbook.SheetNames[0];
-                        const excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: "" });
-
+                        const workbook = XLSX.read(evt.target.result, { type: 'binary' });
+                        const excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
                         const formattedTasks = excelRows.map(row => {
                             const getVal = (key) => {
                                 const foundKey = Object.keys(row).find(k => k.trim().toLowerCase() === key.toLowerCase());
                                 return foundKey ? row[foundKey] : '';
                             };
-                            return {
-                                aisle: getVal('Aisle'),
-                                bay: getVal('Bay'),
-                                dept: getVal('Dept'),
-                                article: getVal('Article')
-                            };
+                            return { aisle: getVal('Aisle'), bay: getVal('Bay'), dept: getVal('Dept'), article: getVal('Article') };
                         }).filter(t => String(t.article).trim() !== '');
-
-                        if(formattedTasks.length === 0) {
-                            alert("ไม่พบข้อมูลในไฟล์ หรือหัวคอลัมน์ไม่ตรง (ต้องการ: Aisle, Bay, Dept, Article)");
-                            e.target.value = null; return;
-                        }
+                        if(formattedTasks.length === 0) return alert("Invalid Format (Need: Aisle, Bay, Dept, Article)");
                         setPreviewTasks(formattedTasks);
-                    } catch(err) { alert("ไฟล์ Excel ไม่ถูกต้อง"); }
+                    } catch(err) { alert("Invalid Excel File"); }
                     e.target.value = null; 
                 };
                 reader.readAsBinaryString(file);
@@ -462,175 +516,139 @@
 
             const confirmBulkUpload = async () => {
                 setLoading(true);
-                setStatus("เริ่มส่งข้อมูล...");
-                try {
-                    const response = await fetchGAS({ action: 'createTasksBulk', tasks: previewTasks });
-                    if (response.success) {
-                        alert("อัปโหลดสำเร็จ!");
-                        setPreviewTasks(null);
-                        loadData();
-                    } else {
-                        alert("Error: " + response.message);
-                    }
-                } catch (err) {
-                    alert("Debug Info: " + err.message);
-                } finally {
-                    setLoading(false);
-                    setStatus("");
-                }
+                const response = await fetchGAS({ action: 'createTasksBulk', tasks: previewTasks });
+                if (response.success) { alert("Bulk Upload Success!"); setPreviewTasks(null); loadData(); } 
+                else { alert("Error: " + response.message); }
+                setLoading(false);
             };
 
-            // จัดกลุ่ม Tasks เพื่อแสดงใน Dashboard แยกตาม Dept -> Aisle -> Bay
-            const groupedTasks = Object.values(tasks.reduce((acc, t) => {
+            const filteredTasksForDashboard = tasks.filter(t => {
+                if (!taskSearchQuery) return true;
+                return String(t.Article || '').toLowerCase().includes(taskSearchQuery.toLowerCase().trim());
+            });
+
+            const groupedTasks = Object.values(filteredTasksForDashboard.reduce((acc, t) => {
                 const key = `${t.Dept}_${t.Aisle}_${t.Bay}`;
                 if (!acc[key]) acc[key] = { dept: t.Dept, aisle: t.Aisle, bay: t.Bay, tasks: [], done: 0, total: 0 };
-                acc[key].tasks.push(t);
-                acc[key].total++;
+                acc[key].tasks.push(t); acc[key].total++;
                 if (t.Status === 'Done') acc[key].done++;
                 return acc;
             }, {}));
             
-            groupedTasks.sort((a, b) => a.dept.localeCompare(b.dept) || String(a.aisle).localeCompare(String(b.aisle)) || String(a.bay).localeCompare(String(b.bay)));
-
-            // กรองข้อมูล Submission ด้วยวันที่และแผนก (Filter Logic)
             const filteredSubmissions = submissions.filter(s => {
-                const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
-                const recordDept = matchedTask.Dept || s.Dept || "N/A";
-
-                // 1. ตรวจสอบเงื่อนไขแผนก
-                if (filterDept && filterDept !== '' && recordDept !== filterDept) {
-                    return false;
-                }
-
-                // 2. ตรวจสอบเงื่อนไขวันที่
+                const mt = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
+                const recordDept = mt.Dept || s.Dept || "N/A";
+                
+                if (filterDept && recordDept !== filterDept) return false;
+                
                 if (startDate || endDate) {
                     if (!s.Date) return false;
-                    
-                    const sDateStr = String(s.Date).trim(); // เอาเฉพาะส่วนวันที่
+                    const sDateStr = String(s.Date).trim();
                     let compareDate = null;
-
-                    // พยายามแปลงวันที่ให้ถูกต้อง ไม่ว่าจะมาในรูปแบบ DD-MM-YYYY หรือ YYYY-MM-DD หรือ DD/MM/YYYY
                     if (sDateStr.includes('-')) {
-                        const parts = sDateStr.split('-');
-                        if (parts[0].length === 4) compareDate = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`); // YYYY-MM-DD
-                        else if (parts.length === 3) compareDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`); // DD-MM-YYYY
+                        const p = sDateStr.split('-'); compareDate = p[0].length === 4 ? new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`) : new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
                     } else if (sDateStr.includes('/')) {
-                        const parts = sDateStr.split('/');
-                        if (parts[0].length === 4) compareDate = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`); // YYYY/MM/DD
-                        else if (parts.length === 3) compareDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`); // DD/MM/YYYY
-                    } else {
-                        compareDate = new Date(sDateStr); // fallback
-                    }
-
+                        const p = sDateStr.split('/'); compareDate = p[0].length === 4 ? new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`) : new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+                    } else { compareDate = new Date(sDateStr); }
                     if (compareDate && !isNaN(compareDate.getTime())) {
                         if (startDate && compareDate < new Date(startDate + "T00:00:00")) return false;
                         if (endDate && compareDate > new Date(endDate + "T23:59:59")) return false;
                     }
                 }
-                
+
+                if (searchQuery) {
+                    const query = searchQuery.toLowerCase().trim();
+                    const article = String(s.Article || '').toLowerCase();
+                    const itemName = String(s.Item || '').toLowerCase(); 
+                    const empId = String(s.EmpID || '').toLowerCase();
+                    
+                    if (!article.includes(query) && !itemName.includes(query) && !empId.includes(query)) {
+                        return false;
+                    }
+                }
+
                 return true;
             });
 
             const exportExcel = () => {
-                const dataToExport = filteredSubmissions.map(s => {
-                    const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
-                    const datePart = s.Date || '-';
-                    const timePart = s.Time || '-';
-                    return {
-                        "Date": datePart,
-                        "Time": timePart,
-                        "Dept": matchedTask.Dept || s.Dept || "N/A",
-                        "Aisle": matchedTask.Aisle || "N/A",
-                        "Bay": matchedTask.Bay || "N/A",
-                        "Article": s.Article,
-                        "Weight/Qty": s.Weight,
-                        "EmpID": s.EmpID
-                    };
+                const data = filteredSubmissions.map(s => {
+                    const mt = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
+                    return { "Date": s.Date || '-', "Time": s.Time || '-', "Dept": mt.Dept || s.Dept || "N/A", "Aisle": mt.Aisle || "N/A", "Bay": mt.Bay || "N/A", "Article": s.Article, "Weight": s.Weight, "EmpID": s.EmpID };
                 });
-                const ws = XLSX.utils.json_to_sheet(dataToExport);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Report");
-                XLSX.writeFile(wb, "StockCount_Report.xlsx");
+                XLSX.writeFile(XLSX.utils.book_append_sheet(XLSX.utils.book_new(), XLSX.utils.json_to_sheet(data), "Report"), "StockCount_Report.xlsx");
             };
 
             return (
                 <div>
                     <div className="flex gap-2 mb-6">
-                        <button onClick={()=>setView('tasks')} className={`flex-1 py-3 rounded-lg font-bold transition-colors ${view==='tasks'?'bg-rose-600 text-white shadow-md':'bg-white text-gray-600 border'}`}>1. มอบหมายงาน / ความคืบหน้า</button>
-                        <button onClick={()=>setView('report')} className={`flex-1 py-3 rounded-lg font-bold transition-colors ${view==='report'?'bg-rose-600 text-white shadow-md':'bg-white text-gray-600 border'}`}>2. {t.viewReport}</button>
+                        <button onClick={()=>setView('tasks')} className={`flex-1 py-3 rounded-xl font-bold transition-colors ${view==='tasks'?'bg-blue-600 text-white shadow-md':'bg-white text-slate-600 border'}`}>1. Task Dashboard</button>
+                        <button onClick={()=>setView('report')} className={`flex-1 py-3 rounded-xl font-bold transition-colors ${view==='report'?'bg-blue-600 text-white shadow-md':'bg-white text-slate-600 border'}`}>2. {t.viewReport}</button>
                     </div>
 
                     {view === 'tasks' && !previewTasks && (
                         <div className="grid lg:grid-cols-3 gap-6 items-start">
-                            
-                            <div className="bg-white p-6 rounded-xl shadow-sm border lg:col-span-1">
-                                <h3 className="font-bold text-lg mb-4 text-gray-800">{t.createTask}</h3>
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-1">
+                                <h3 className="font-bold text-lg mb-4 text-slate-800">{t.createTask}</h3>
                                 <form onSubmit={handleCreate} className="space-y-3 mb-6">
-                                    <input required placeholder={t.article} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.article} onChange={e=>setForm({...form, article: e.target.value})} />
+                                    <input required placeholder={t.article} className="w-full p-3 border rounded-xl outline-none focus:border-blue-500 bg-slate-50" value={form.article} onChange={e=>setForm({...form, article: e.target.value})} />
                                     <div className="flex gap-2">
-                                        <input required placeholder={t.aisle} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.aisle} onChange={e=>setForm({...form, aisle: e.target.value})} />
-                                        <input required placeholder={t.bay} className="w-full p-3 border rounded outline-none focus:border-rose-500" value={form.bay} onChange={e=>setForm({...form, bay: e.target.value})} />
+                                        <input required placeholder={t.aisle} className="w-full p-3 border rounded-xl outline-none focus:border-blue-500 bg-slate-50" value={form.aisle} onChange={e=>setForm({...form, aisle: e.target.value})} />
+                                        <input required placeholder={t.bay} className="w-full p-3 border rounded-xl outline-none focus:border-blue-500 bg-slate-50" value={form.bay} onChange={e=>setForm({...form, bay: e.target.value})} />
                                     </div>
-                                    
                                     {user.role === 'Admin' && (
-                                        <select required className="w-full p-3 border rounded outline-none focus:border-rose-500 bg-white"
-                                            value={form.dept} onChange={e=>setForm({...form, dept: e.target.value})}>
-                                            <option value="" disabled>-- เลือกแผนกปลายทาง --</option>
-                                            <option value="เบเกอรี">เบเกอรี</option>
-                                            <option value="ผักและผลไม้">ผักและผลไม้</option>
-                                            <option value="อาหารทะเล">อาหารทะเล</option>
-                                            <option value="เนื้อสัตว์">เนื้อสัตว์</option>
-                                            <option value="อาหารแช่แข็ง">อาหารแช่แข็ง</option>
+                                        <select required className="w-full p-3 border rounded-xl outline-none focus:border-blue-500 bg-slate-50" value={form.dept} onChange={e=>setForm({...form, dept: e.target.value})}>
+                                            <option value="" disabled>-- Dept --</option>
+                                            <option value="เบเกอรี">เบเกอรี (Bakery)</option>
+                                            <option value="ผักและผลไม้">ผักและผลไม้ (Produce)</option>
+                                            <option value="อาหารทะเล">อาหารทะเล (Seafood)</option>
+                                            <option value="เนื้อสัตว์">เนื้อสัตว์ (Meat)</option>
                                         </select>
                                     )}
-                                    <button disabled={loading} type="submit" className="w-full bg-blue-600 text-white p-3 rounded font-bold hover:bg-blue-700 mt-2">{t.btnCreate}</button>
+                                    <button disabled={loading} type="submit" className="w-full bg-slate-800 text-white p-3 rounded-xl font-bold hover:bg-slate-900 mt-2 transition">{t.btnCreate}</button>
                                 </form>
-
-                                <hr className="my-4"/>
-                                <h3 className="font-bold text-lg mb-2 text-green-700">แจกงานกลุ่ม (Excel)</h3>
-                                <label className="block w-full text-center p-4 border-2 border-dashed border-green-300 bg-green-50 rounded-lg cursor-pointer hover:bg-green-100 transition mt-2">
-                                    <span className="text-green-700 font-bold">{loading ? 'กำลังอ่าน...' : '📥 เลือกไฟล์ Excel'}</span>
+                                <hr className="my-4 border-slate-100"/>
+                                <h3 className="font-bold text-sm mb-2 text-emerald-700 uppercase tracking-wide">Bulk Upload (Excel)</h3>
+                                <label className="block w-full text-center p-4 border-2 border-dashed border-emerald-300 bg-emerald-50 rounded-xl cursor-pointer hover:bg-emerald-100 transition mt-2">
+                                    <span className="text-emerald-700 font-bold">{loading ? 'Loading...' : '📥 Select Excel File'}</span>
                                     <input type="file" accept=".xlsx, .xls" onChange={handleExcelUpload} disabled={loading} className="hidden" />
                                 </label>
                             </div>
                             
-                            <div className="bg-white p-6 rounded-xl shadow-sm border lg:col-span-2">
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
                                 <div className="flex justify-between items-center mb-4 gap-2 flex-wrap">
-                                    <h3 className="font-bold text-lg text-gray-800">{t.taskList} <span className="text-sm font-normal text-green-600">(อัปเดตอัตโนมัติ)</span></h3>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => loadData(false)} disabled={loading} className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded shadow-sm border hover:bg-gray-200 transition">
-                                            🔄 อัปเดต
-                                        </button>
-                                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold flex items-center">รวม: {tasks.length}</span>
+                                    <h3 className="font-bold text-lg text-slate-800">{t.taskList}</h3>
+                                    <div className="flex gap-2 w-full md:w-auto">
+                                        <input 
+                                            type="text" 
+                                            placeholder={t.searchPlaceholder}
+                                            value={taskSearchQuery}
+                                            onChange={(e) => setTaskSearchQuery(e.target.value)}
+                                            className="bg-slate-50 border p-2 rounded-lg outline-none text-sm w-full md:w-48 focus:border-blue-500 focus:bg-white transition"
+                                        />
+                                        <button onClick={() => loadData(false)} disabled={loading} className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg border hover:bg-slate-200 transition">🔄 Refresh</button>
                                     </div>
                                 </div>
-                                
                                 <div className="max-h-[600px] overflow-y-auto space-y-4 pr-2 hide-scroll">
-                                    {groupedTasks.length === 0 && <p className="text-center text-gray-500 py-8">ไม่มีรายการงานในระบบ</p>}
-                                    
+                                    {groupedTasks.length === 0 && <p className="text-center text-slate-400 py-8 border-2 border-dashed rounded-xl">No tasks available / ไม่พบรหัสสินค้าที่ค้นหา</p>}
                                     {groupedTasks.map((group, idx) => {
                                         const percent = group.total === 0 ? 0 : Math.round((group.done / group.total) * 100);
                                         return (
-                                            <div key={idx} className="border rounded-xl overflow-hidden shadow-sm bg-white">
-                                                <div className="bg-blue-50 p-3 flex justify-between items-center border-b border-blue-100">
+                                            <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                                                <div className="bg-slate-50 p-3 flex justify-between items-center border-b border-slate-200">
                                                     <div>
-                                                        <span className="font-bold text-blue-900 bg-blue-200 px-2 py-1 rounded text-xs mr-2">{group.dept}</span>
-                                                        <span className="font-bold text-gray-700 text-sm">Aisle: <span className="text-blue-700">{group.aisle}</span> | Bay: <span className="text-blue-700">{group.bay}</span></span>
+                                                        <span className="font-bold text-blue-900 bg-blue-100 px-2 py-1 rounded text-xs mr-2">{group.dept}</span>
+                                                        <span className="font-bold text-slate-700 text-sm">Aisle: {group.aisle} | Bay: {group.bay}</span>
                                                     </div>
-                                                    <div className="text-xs font-bold bg-white px-2 py-1 rounded text-blue-800 shadow-sm border">
-                                                        นับแล้ว {group.done} / {group.total} ({percent}%)
+                                                    <div className="text-xs font-bold bg-white px-2 py-1 rounded-lg text-slate-700 shadow-sm border">
+                                                        {group.done} / {group.total} ({percent}%)
                                                     </div>
                                                 </div>
-                                                <div className="w-full bg-gray-200 h-1.5">
-                                                    <div className={`h-1.5 transition-all duration-500 ${percent === 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${percent}%` }}></div>
-                                                </div>
-                                                <div className="p-2 bg-gray-50 max-h-48 overflow-y-auto hide-scroll">
+                                                <div className="w-full bg-slate-200 h-1.5"><div className={`h-1.5 transition-all duration-500 ${percent === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${percent}%` }}></div></div>
+                                                <div className="p-2 bg-white max-h-48 overflow-y-auto hide-scroll">
                                                     {group.tasks.map(task => (
-                                                        <div key={task.TaskID} className="flex justify-between items-center p-2 border-b border-gray-100 last:border-0 text-sm hover:bg-gray-100 transition">
-                                                            <span className="text-gray-700">รหัส: {task.Article}</span>
-                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${task.Status === 'Pending' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-700'}`}>
-                                                                {task.Status}
-                                                            </span>
+                                                        <div key={task.TaskID} className="flex justify-between items-center p-2 border-b border-slate-50 last:border-0 text-sm hover:bg-slate-50 transition">
+                                                            <span className="text-slate-700 font-medium">PLU: {task.Article}</span>
+                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${task.Status === 'Pending' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'}`}>{task.Status}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -643,123 +661,66 @@
                     )}
 
                     {view === 'tasks' && previewTasks && (
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-blue-200">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-200">
                             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                                <div>
-                                    <h3 className="font-bold text-xl text-blue-800">พรีวิวข้อมูลเตรียมแจกงาน</h3>
-                                    <p className="text-sm text-gray-500">พบข้อมูล {status || <span className="font-bold text-lg text-rose-600">{previewTasks.length} รายการ</span>}</p>
+                                <div><h3 className="font-bold text-xl text-blue-800">Preview Bulk Data</h3><p className="text-sm text-slate-500">{previewTasks.length} Records Found</p></div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setPreviewTasks(null)} disabled={loading} className="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold">Cancel</button>
+                                    <button onClick={confirmBulkUpload} disabled={loading} className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold">{loading ? 'Processing...' : '✅ Confirm Upload'}</button>
                                 </div>
-                                <div className="flex gap-2 w-full md:w-auto">
-                                    <button onClick={() => setPreviewTasks(null)} disabled={loading} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-bold">ยกเลิก</button>
-                                    <button onClick={confirmBulkUpload} disabled={loading} className="px-6 py-3 bg-green-600 text-white rounded-lg font-bold flex justify-center items-center">
-                                        {loading ? <div className="spinner border-l-white mr-2"></div> : '✅ ยืนยันการแจกงาน'}
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div className="max-h-[500px] overflow-y-auto border rounded-lg bg-gray-50 hide-scroll">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-blue-100 text-blue-900 sticky top-0 shadow-sm">
-                                        <tr>
-                                            <th className="p-3">ลำดับ</th>
-                                            <th className="p-3">รหัสสินค้า</th>
-                                            <th className="p-3">แผนก</th>
-                                            <th className="p-3">Aisle</th>
-                                            <th className="p-3">Bay</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y bg-white">
-                                        {previewTasks.map((t, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50">
-                                                <td className="p-3 text-gray-400">{idx + 1}</td>
-                                                <td className="p-3 font-bold text-gray-800">{t.article}</td>
-                                                <td className="p-3 text-blue-600 font-medium">{t.dept}</td>
-                                                <td className="p-3">{t.aisle}</td>
-                                                <td className="p-3">{t.bay}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
                     )}
 
                     {view === 'report' && (
-                        <div className="bg-white p-6 rounded-xl shadow-sm border">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                                <h3 className="font-bold text-lg">{t.viewReport} (Log)</h3>
-                                
-                                {/* กล่องเลือกฟิลเตอร์วันที่ และ แผนก */}
+                                <h3 className="font-bold text-lg">{t.viewReport}</h3>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <div className="flex items-center border rounded-lg bg-gray-50 px-2 py-1">
-                                        <span className="text-sm text-gray-500 mr-2">แผนก:</span>
-                                        <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="bg-transparent outline-none text-sm cursor-pointer">
-                                            <option value="">ทั้งหมด</option>
-                                            {uniqueDepts.map(dept => (
-                                                <option key={dept} value={dept}>{dept}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="flex items-center border rounded-lg bg-gray-50 px-2 py-1">
-                                        <span className="text-sm text-gray-500 mr-2">เริ่ม:</span>
-                                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent outline-none text-sm" />
-                                    </div>
-                                    <div className="flex items-center border rounded-lg bg-gray-50 px-2 py-1">
-                                        <span className="text-sm text-gray-500 mr-2">ถึง:</span>
-                                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent outline-none text-sm" />
-                                    </div>
-                                    <button onClick={() => { setStartDate(''); setEndDate(''); setFilterDept(''); }} className="text-sm text-gray-500 hover:text-red-500 px-2">ล้างตัวกรอง</button>
+                                    <input 
+                                        type="text" 
+                                        placeholder={t.searchPlaceholder}
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="bg-white border-2 border-blue-100 p-2 rounded-lg outline-none text-sm w-full md:w-56 focus:border-blue-500 transition shadow-sm"
+                                    />
+                                    <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="bg-slate-50 border p-2 rounded-lg outline-none text-sm cursor-pointer">
+                                        <option value="">All Dept</option>
+                                        {uniqueDepts.map(dept => (<option key={dept} value={dept}>{dept}</option>))}
+                                    </select>
+                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-50 border p-2 rounded-lg outline-none text-sm" />
+                                    <span className="text-slate-400">-</span>
+                                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-50 border p-2 rounded-lg outline-none text-sm" />
+                                    <button onClick={() => { setStartDate(''); setEndDate(''); setFilterDept(''); setSearchQuery(''); }} className="text-sm text-red-500 hover:bg-red-50 px-2 py-1 rounded border border-transparent hover:border-red-200 transition">Clear</button>
                                 </div>
-
-                                <div className="flex gap-2">
-                                    <button onClick={() => loadData(false)} disabled={loading} className="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded shadow-sm border hover:bg-gray-200 transition">
-                                        🔄
-                                    </button>
-                                    <button onClick={exportExcel} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-green-700 flex items-center gap-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                        {t.export} ({filteredSubmissions.length})
-                                    </button>
-                                </div>
+                                <button onClick={exportExcel} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm hover:bg-emerald-700">{t.export}</button>
                             </div>
 
-                            <div className="overflow-x-auto rounded-lg border hide-scroll max-h-[500px]">
-                                <table className="w-full text-sm text-left relative">
-                                    <thead className="bg-gray-100 text-gray-700 border-b sticky top-0 shadow-sm z-10">
+                            <div className="overflow-x-auto rounded-xl border border-slate-200 hide-scroll max-h-[500px]">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-100 text-slate-700 sticky top-0 shadow-sm z-10">
                                         <tr>
-                                            {/* แยกหัวตารางเป็น วันที่ และ เวลาที่นับ */}
-                                            <th className="p-3">วันที่</th>
-                                            <th className="p-3">เวลาที่นับ</th>
-                                            <th className="p-3">แผนก</th>
-                                            <th className="p-3">Aisle / Bay</th>
-                                            <th className="p-3">สินค้า</th>
-                                            <th className="p-3">น้ำหนัก</th>
-                                            <th className="p-3">พนักงาน</th>
-                                            <th className="p-3">รูปภาพ</th>
+                                            <th className="p-3">Date</th><th className="p-3">Time</th><th className="p-3">Dept</th>
+                                            <th className="p-3">Aisle/Bay</th><th className="p-3">PLU</th><th className="p-3">Weight</th>
+                                            <th className="p-3">Staff ID</th><th className="p-3">Photo</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y">
+                                    <tbody className="divide-y divide-slate-100">
                                         {filteredSubmissions.length === 0 ? (
-                                            <tr><td colSpan="8" className="text-center p-8 text-gray-500">ไม่พบข้อมูลในช่วงเวลาหรือแผนกที่เลือก</td></tr>
+                                            <tr><td colSpan="8" className="text-center p-8 text-slate-400">No data found / ไม่พบข้อมูลที่ค้นหา</td></tr>
                                         ) : (
                                             filteredSubmissions.map((s, idx) => {
-                                                const matchedTask = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
-                                                
-                                                // แยกวันที่ และ เวลา ออกจากกันเพื่อแสดงผลในคนละช่อง
-                                                const datePart = s.Date || '-';
-                                                const timePart = s.Time || '-';
-
+                                                const mt = tasks.find(t => String(t.TaskID) === String(s.TaskID)) || {};
                                                 return (
-                                                    <tr key={idx} className="hover:bg-gray-50">
-                                                        <td className="p-3 text-gray-500 whitespace-nowrap">{datePart}</td>
-                                                        <td className="p-3 text-gray-500 whitespace-nowrap">{timePart}</td>
-                                                        <td className="p-3 font-medium text-gray-800">{matchedTask.Dept || s.Dept || '-'}</td>
-                                                        <td className="p-3 text-blue-700 font-bold">{matchedTask.Aisle || '-'}/{matchedTask.Bay || '-'}</td>
-                                                        <td className="p-3 font-bold text-gray-800">{s.Article}</td>
-                                                        <td className="p-3 text-rose-600 font-bold">{s.Weight}</td>
-                                                        <td className="p-3">{s.EmpID}</td>
-                                                        <td className="p-3">
-                                                            {s.ImageURL && <a href={s.ImageURL} target="_blank" className="text-blue-600 hover:underline font-medium">ดูรูป</a>}
-                                                        </td>
+                                                    <tr key={idx} className="hover:bg-slate-50 transition">
+                                                        <td className="p-3 text-slate-500 whitespace-nowrap">{s.Date || '-'}</td>
+                                                        <td className="p-3 text-slate-500 whitespace-nowrap">{s.Time || '-'}</td>
+                                                        <td className="p-3 font-medium text-slate-800">{mt.Dept || s.Dept || '-'}</td>
+                                                        <td className="p-3 text-blue-600 font-bold">{mt.Aisle || '-'}/{mt.Bay || '-'}</td>
+                                                        <td className="p-3 font-bold text-slate-800">{s.Article}</td>
+                                                        <td className="p-3 text-emerald-600 font-black">{s.Weight}</td>
+                                                        <td className="p-3 text-slate-600">{s.EmpID}</td>
+                                                        <td className="p-3">{s.ImageURL && <a href={s.ImageURL} target="_blank" className="text-blue-500 hover:underline font-bold text-xs bg-blue-50 px-2 py-1 rounded">View</a>}</td>
                                                     </tr>
                                                 );
                                             })
