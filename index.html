@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WeighLess - Smart Inventory</title>
+    <title>WeighLess</title>
     
+    <!-- อัปเกรด React และ Babel เป็นเวอร์ชันล่าสุดเพื่อแก้ปัญหาหน้าจอขาวบนมือถือ -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -23,17 +24,25 @@
     </style>
 </head>
 <body>
+    <!-- ระบบดักจับ Error (ถ้าโค้ดพัง จะแสดงสีแดงตรงนี้แทนหน้าจอขาว) -->
+    <div id="error-log" style="color: red; padding: 20px; font-weight: bold; font-family: monospace;"></div>
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            document.getElementById('error-log').innerHTML += `<p>💥 Error: ${message} <br/>(Line: ${lineno}, Col: ${colno})</p>`;
+        };
+    </script>
+
     <div id="root"></div>
 
     <script type="text/babel">
         // ==========================================
-        // ⚠️ นำ URL จาก Google Apps Script (ตอนกด Deploy) มาใส่ตรงนี้
+        // ⚠️ นำ URL จาก Google Apps Script มาใส่ตรงนี้
         // ==========================================
         const GAS_URL = "https://script.google.com/macros/s/AKfycbyVEK_BhNN2vLizoZ_4MBMz6Br45unfL-fZkE786e-2gQy-0aLkoyDSudoyWQZdfpvi/exec";
 
         const dict = {
             th: {
-                sysName: "WeighLess Inventory", login: "เข้าสู่ระบบ", register: "สมัครสมาชิก", empId: "รหัสพนักงาน", pass: "รหัสผ่าน",
+                sysName: "WeighLess", login: "เข้าสู่ระบบ", register: "สมัครสมาชิก", empId: "รหัสพนักงาน", pass: "รหัสผ่าน",
                 name: "ชื่อ-นามสกุล", dept: "แผนก", btnLogin: "เข้าสู่ระบบ", btnReg: "สมัครบัญชีใหม่", logout: "ออกจากระบบ", 
                 role_Admin: "ผู้ดูแลระบบ", role_Supervisor: "หัวหน้างาน", role_Staff: "พนักงาน",
                 createTask: "มอบหมายงานใหม่", article: "รหัสสินค้า", aisle: "Aisle", bay: "Bay", btnCreate: "สร้างงาน",
@@ -45,7 +54,7 @@
                 searchPlaceholder: "🔍 ค้นหารหัส / ชื่อสินค้า..."
             },
             en: {
-                sysName: "WeighLess Inventory", login: "Login", register: "Register", empId: "Emp ID", pass: "Password",
+                sysName: "WeighLess", login: "Login", register: "Register", empId: "Emp ID", pass: "Password",
                 name: "Full Name", dept: "Department", btnLogin: "Sign In", btnReg: "Create Account", logout: "Logout", 
                 role_Admin: "Admin", role_Supervisor: "Supervisor", role_Staff: "Staff",
                 createTask: "Assign Task", article: "Article/PLU", aisle: "Aisle", bay: "Bay", btnCreate: "Create Task",
@@ -131,7 +140,7 @@
                         if(isReg) { alert(res.message); setIsReg(false); } 
                         else { setUser(res.user); }
                     } else alert(res.message);
-                } catch (err) { alert("Network Error"); }
+                } catch (err) { alert("Network Error: ตรวจสอบ URL ของ GAS"); }
                 finally { setLoading(false); }
             };
 
@@ -206,7 +215,7 @@
                 try {
                     const res = await fetchGAS({ action: 'getTasks', role: user.role, dept: user.dept });
                     if(res.success) setTasks(res.tasks.filter(t => t.Status !== 'Done'));
-                } catch(e) {}
+                } catch(e) { console.log(e); }
                 setLoading(false);
             };
 
@@ -447,7 +456,7 @@
         }
 
         // ==========================================
-        // แดชบอร์ด หัวหน้างาน (Admin & Supervisor) + ระบบค้นหา
+        // แดชบอร์ด หัวหน้างาน (Admin & Supervisor)
         // ==========================================
         function SupervisorPanel({ user, t, fetchGAS }) {
             const [view, setView] = useState('tasks');
@@ -458,7 +467,6 @@
             
             const [previewTasks, setPreviewTasks] = useState(null);
             
-            // Filters & Search
             const [startDate, setStartDate] = useState('');
             const [endDate, setEndDate] = useState('');
             const [filterDept, setFilterDept] = useState('');
