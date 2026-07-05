@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WeighLess</title>
+    <title>WeighLess - Smart Inventory</title>
     
     <!-- อัปเกรด React และ Babel เป็นเวอร์ชันล่าสุดเพื่อแก้ปัญหาหน้าจอขาวบนมือถือ -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -42,7 +42,7 @@
 
         const dict = {
             th: {
-                sysName: "WeighLess", login: "เข้าสู่ระบบ", register: "สมัครสมาชิก", empId: "รหัสพนักงาน", pass: "รหัสผ่าน",
+                sysName: "WeighLess Inventory", login: "เข้าสู่ระบบ", register: "สมัครสมาชิก", empId: "รหัสพนักงาน", pass: "รหัสผ่าน",
                 name: "ชื่อ-นามสกุล", dept: "แผนก", btnLogin: "เข้าสู่ระบบ", btnReg: "สมัครบัญชีใหม่", logout: "ออกจากระบบ", 
                 role_Admin: "ผู้ดูแลระบบ", role_Supervisor: "หัวหน้างาน", role_Staff: "พนักงาน",
                 createTask: "มอบหมายงานใหม่", article: "รหัสสินค้า", aisle: "Aisle", bay: "Bay", btnCreate: "สร้างงาน",
@@ -54,7 +54,7 @@
                 searchPlaceholder: "🔍 ค้นหารหัส / ชื่อสินค้า..."
             },
             en: {
-                sysName: "WeighLess", login: "Login", register: "Register", empId: "Emp ID", pass: "Password",
+                sysName: "WeighLess Inventory", login: "Login", register: "Register", empId: "Emp ID", pass: "Password",
                 name: "Full Name", dept: "Department", btnLogin: "Sign In", btnReg: "Create Account", logout: "Logout", 
                 role_Admin: "Admin", role_Supervisor: "Supervisor", role_Staff: "Staff",
                 createTask: "Assign Task", article: "Article/PLU", aisle: "Aisle", bay: "Bay", btnCreate: "Create Task",
@@ -283,6 +283,9 @@
                 setProductDetail({ Article: prediction.Article, Item: prediction.Item });
                 setAiPredictions(null);
             };
+            
+            // เพิ่มฟังก์ชันปิด Popup AI
+            const closeAIPopup = () => setAiPredictions(null);
 
             const submitTask = async () => {
                 if(!weight) return alert("กรุณากรอกน้ำหนัก / Please enter weight");
@@ -376,26 +379,47 @@
                                     <><span>🤖</span> Auto-Detect with AI Copilot</>
                                 )}
                             </button>
-
-                            {aiPredictions && (
-                                <div className="mt-3 space-y-2 ai-glow rounded-xl p-3 bg-white">
-                                    <p className="text-xs font-bold text-blue-600 mb-2 flex items-center gap-1">✨ AI Suggested Items:</p>
-                                    {aiPredictions.map((pred, idx) => (
-                                        <div key={idx} onClick={() => selectAIPrediction(pred)} className="p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition flex justify-between items-center group">
-                                            <div>
-                                                <p className="font-bold text-slate-800 group-hover:text-blue-700">{pred.Item}</p>
-                                                <p className="text-xs text-slate-500">PLU: {pred.Article}</p>
-                                            </div>
-                                            <div className="flex flex-col items-end">
-                                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${pred.confidence > 0.9 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                    {(pred.confidence * 100).toFixed(0)}% Match
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
                         </div>
+
+                        {/* 🌟 Google Lens Style Bottom Sheet Popup 🌟 */}
+                        {aiPredictions && (
+                            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm transition-opacity animate-[fadeIn_0.3s_ease-in-out]">
+                                <div className="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl p-6 pb-10 transform transition-transform animate-[slideUp_0.4s_ease-out]">
+                                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                            <span className="text-2xl">✨</span> AI วิเคราะห์สินค้า
+                                        </h3>
+                                        <button onClick={closeAIPopup} className="text-slate-400 hover:text-red-500 bg-slate-100 p-2 rounded-full transition">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                    </div>
+                                    <p className="text-sm text-slate-500 mb-4">พบสินค้าที่มีลักษณะใกล้เคียง กรุณาเลือกรายการที่ถูกต้อง</p>
+                                    
+                                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2 hide-scroll">
+                                        {aiPredictions.map((pred, idx) => (
+                                            <div key={idx} onClick={() => selectAIPrediction(pred)} className="p-4 border-2 border-slate-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all flex justify-between items-center group active:scale-[0.98]">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-black group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-slate-800 text-lg group-hover:text-blue-800">{pred.Item}</p>
+                                                        <p className="text-sm text-slate-500 font-medium">PLU: {pred.Article}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end">
+                                                    <span className={`text-xs font-black px-3 py-1.5 rounded-full shadow-sm border ${pred.confidence > 0.9 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
+                                                        แม่นยำ {(pred.confidence * 100).toFixed(0)}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {/* 🌟 End of Google Lens Style Popup 🌟 */}
 
                         {productDetail && (
                             <div className={`p-4 rounded-xl mb-6 border ${isMismatch ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
