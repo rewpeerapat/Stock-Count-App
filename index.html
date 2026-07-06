@@ -66,13 +66,13 @@
                 sysName: "WeighLess Inventory", login: "Login", register: "Register", empId: "Emp ID", pass: "Password",
                 name: "Full Name", dept: "Department", btnLogin: "Sign In", btnReg: "Create Account", logout: "Logout", 
                 role_Admin: "Admin", role_Supervisor: "Supervisor", role_Staff: "Staff",
-                createTask: "Assign Task", article: "Article/PLU", aisle: "Aisle", bay: "Bay", btnCreate: "Create Task",
+                createTask: "Assign Task", article: "Article", aisle: "Aisle", bay: "Bay", btnCreate: "Create Task",
                 taskList: "Counting Progress", viewReport: "Report Log", export: "Export Excel",
                 myTasks: "My Tasks", countTarget: "Count Target", weight: "Weight (kg)", 
                 takePhoto: "📸 Take Evidence Photo", retakePhoto: "📸 Retake Photo", btnSubmit: "Save to System",
                 noTask: "No pending tasks", pending: "Pending", done: "Done",
-                scanToVerify: "Enter PLU or Scan", lookupBtn: "Search", productFound: "Product Found", mismatchWarn: "Article mismatch with assigned task!",
-                searchPlaceholder: "🔍 Search PLU / Name..."
+                scanToVerify: "Enter Item No or Scan", lookupBtn: "Search", productFound: "Product Found", mismatchWarn: "Article mismatch with assigned task!",
+                searchPlaceholder: "🔍 Search Item No / Name..."
             }
         };
 
@@ -336,7 +336,7 @@
                                     {autoCandidate.source === 'label' ? ' · 🏷️ อ่านจากป้าย' : ' · 👁️ วิเคราะห์จากภาพ'}
                                 </p>
                                 <h3 className="text-2xl font-black text-slate-800 mb-1">{autoCandidate.Item}</h3>
-                                <p className="text-slate-500 mb-6">PLU: {autoCandidate.Article}</p>
+                                <p className="text-slate-500 mb-6">Article: {autoCandidate.Article}</p>
                                 <p className="font-bold text-slate-700 mb-4">ใช่สินค้าชิ้นนี้ใช่ไหม?</p>
                                 <div className="flex gap-3">
                                     <button onClick={resumeScanning} className="flex-1 bg-slate-100 text-slate-700 p-4 rounded-xl font-bold hover:bg-slate-200 transition">❌ ไม่ใช่</button>
@@ -362,7 +362,7 @@
                                                 <div>
                                                     <p className="font-bold text-slate-800">{pred.Item}</p>
                                                     <p className="text-sm text-slate-500 flex items-center gap-1">
-                                                        PLU: {pred.Article}
+                                                        Article: {pred.Article}
                                                         <span className="text-slate-400">·</span>
                                                         <span className="text-slate-400">{pred.source === 'label' ? '🏷️ อ่านจากป้าย' : '👁️ วิเคราะห์จากภาพ'}</span>
                                                     </p>
@@ -521,7 +521,7 @@
 
                         <label className="block text-sm font-bold text-slate-700 mb-2">{t.scanToVerify}</label>
                         <div className="flex gap-2 mb-4">
-                            <input type="text" placeholder="PLU Code" className="flex-1 p-3 border-2 rounded-xl outline-none focus:border-blue-500 text-lg bg-slate-50 focus:bg-white transition"
+                            <input type="text" placeholder="Article Code" className="flex-1 p-3 border-2 rounded-xl outline-none focus:border-blue-500 text-lg bg-slate-50 focus:bg-white transition"
                                 value={scanArticle} onChange={e => setScanArticle(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleLookup(scanArticle)} />
                             
                             <button onClick={() => setIsScannerOpen(!isScannerOpen)} className="bg-blue-600 text-white px-4 rounded-xl flex items-center justify-center text-xl hover:bg-blue-700">
@@ -586,7 +586,7 @@
                         {tasks.map(task => (
                             <div key={task.TaskID} onClick={() => setActiveTask(task)} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500 cursor-pointer hover:shadow-md transition flex justify-between items-center group">
                                 <div>
-                                    <div className="font-bold text-lg text-slate-800 group-hover:text-blue-700 transition">PLU: {task.Article}</div>
+                                    <div className="font-bold text-lg text-slate-800 group-hover:text-blue-700 transition">Article: {task.Article}</div>
                                     <div className="text-sm text-slate-500 mt-1 flex items-center gap-2">
                                         <span className="bg-slate-100 px-2 py-0.5 rounded">Aisle {task.Aisle}</span> 
                                         <span className="bg-slate-100 px-2 py-0.5 rounded">Bay {task.Bay}</span>
@@ -801,7 +801,7 @@
                                                 <div className="p-2 bg-white max-h-48 overflow-y-auto hide-scroll">
                                                     {group.tasks.map(task => (
                                                         <div key={task.TaskID} className="flex justify-between items-center p-2 border-b border-slate-50 last:border-0 text-sm hover:bg-slate-50 transition">
-                                                            <span className="text-slate-700 font-medium">PLU: {task.Article}</span>
+                                                            <span className="text-slate-700 font-medium">Article: {task.Article}</span>
                                                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${task.Status === 'Pending' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'}`}>{task.Status}</span>
                                                         </div>
                                                     ))}
@@ -855,7 +855,7 @@
                                     <thead className="bg-slate-100 text-slate-700 sticky top-0 shadow-sm z-10">
                                         <tr>
                                             <th className="p-3">Date</th><th className="p-3">Time</th><th className="p-3">Dept</th>
-                                            <th className="p-3">Aisle/Bay</th><th className="p-3">PLU</th><th className="p-3">Weight</th>
+                                            <th className="p-3">Aisle/Bay</th><th className="p-3">Article</th><th className="p-3">Weight</th>
                                             <th className="p-3">Staff ID</th><th className="p-3">Photo</th>
                                         </tr>
                                     </thead>
