@@ -44,7 +44,7 @@
         const GAS_URL = "https://script.google.com/macros/s/AKfycby7-aKAkxCv19bT70TvASp4xLm3iH1pzTCg_EAsLokVBchQ_9rWNEyU--3k0o4BdnVh/exec";
 
         // ⚙️ ค่าที่ปรับได้สำหรับ Live AI Scan
-        const SCAN_INTERVAL_MS = 2500;       // ความถี่ในการยิงภาพไปวิเคราะห์ (ms)
+        const SCAN_INTERVAL_MS = 2000;       // ความถี่ในการยิงภาพไปวิเคราะห์ (ms)
         const CONF_AUTO_SELECT = 0.90;       // >= ค่านี้ = Auto-select (ให้ผู้ใช้ยืนยันแค่ ใช่/ไม่ใช่)
         const CONF_SUGGEST = 0.60;           // >= ค่านี้ (แต่ < AUTO) = โชว์ตัวเลือกให้แตะเลือก
                                               // < CONF_SUGGEST = ไม่แน่ใจ ให้สแกนใหม่/พิมพ์รหัสเอง
@@ -294,7 +294,7 @@
             return (
                 <div className="fixed inset-0 z-50 bg-black flex flex-col">
                     <div className="flex justify-between items-center p-4 bg-black/70 text-white relative z-30">
-                        <span className="font-bold gemini-gradient text-lg">AI Live Scan</span>
+                        <span className="font-bold gemini-gradient text-lg">✨ AI Live Scan</span>
                         <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-9 h-9 rounded-full flex items-center justify-center transition">✕</button>
                     </div>
 
@@ -333,7 +333,7 @@
                                 <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4"></div>
                                 <p className="text-xs font-black text-emerald-600 uppercase mb-2 tracking-wide">
                                     ✅ ตรงกัน {(autoCandidate.confidence * 100).toFixed(0)}%
-                                    {autoCandidate.source === 'label' ? ' (อ่านจากป้าย)' : ''}
+                                    {autoCandidate.source === 'label' ? ' · 🏷️ อ่านจากป้าย' : ' · 👁️ วิเคราะห์จากภาพ'}
                                 </p>
                                 <h3 className="text-2xl font-black text-slate-800 mb-1">{autoCandidate.Item}</h3>
                                 <p className="text-slate-500 mb-6">PLU: {autoCandidate.Article}</p>
@@ -352,7 +352,7 @@
                             <div className="bg-white w-full max-w-lg rounded-t-3xl p-6 pb-8" style={{animation: 'slideUp 0.3s ease-out'}}>
                                 <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4"></div>
                                 <h3 className="text-lg font-black gemini-gradient mb-1">✨ ใกล้เคียงหลายรายการ</h3>
-                                <p className="text-sm text-slate-500 mb-4">ฉันไม่มั่นใจ 100% กรุณาแตะเลือกรายการที่ตรง</p>
+                                <p className="text-sm text-slate-500 mb-4">Gemini ไม่มั่นใจ 100% กรุณาแตะเลือกรายการที่ตรง</p>
                                 <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1 hide-scroll">
                                     {candidates.map((pred, idx) => (
                                         <div key={idx} onClick={() => confirmPick(pred)}
@@ -361,7 +361,11 @@
                                                 <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-black">{idx + 1}</div>
                                                 <div>
                                                     <p className="font-bold text-slate-800">{pred.Item}</p>
-                                                    <p className="text-sm text-slate-500">PLU: {pred.Article}</p>
+                                                    <p className="text-sm text-slate-500 flex items-center gap-1">
+                                                        PLU: {pred.Article}
+                                                        <span className="text-slate-400">·</span>
+                                                        <span className="text-slate-400">{pred.source === 'label' ? '🏷️ อ่านจากป้าย' : '👁️ วิเคราะห์จากภาพ'}</span>
+                                                    </p>
                                                 </div>
                                             </div>
                                             <span className={`text-xs font-black px-3 py-1.5 rounded-full border whitespace-nowrap ${pred.confidence > 0.75 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
