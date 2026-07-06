@@ -18,9 +18,12 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
         .spinner { border: 3px solid rgba(0,0,0,0.1); border-left-color: #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-        .ai-glow { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); border: 2px solid #3b82f6; }
+        .gemini-glow { box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); border: 2px solid #a855f7; }
+        .gemini-gradient { background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     </style>
 </head>
 <body>
@@ -38,7 +41,13 @@
         // ==========================================
         // ⚠️ นำ URL จาก Google Apps Script มาใส่ตรงนี้
         // ==========================================
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbxIQF-X7a3xlf6nlctrO5P9z6_-SUF0kZ5jr1TmMhpYQh_Ai3qh5Y9bHM-AgeSkxydB/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycby7-aKAkxCv19bT70TvASp4xLm3iH1pzTCg_EAsLokVBchQ_9rWNEyU--3k0o4BdnVh/exec";
+
+        // ⚙️ ค่าที่ปรับได้สำหรับ Live AI Scan
+        const SCAN_INTERVAL_MS = 2500;       // ความถี่ในการยิงภาพไปวิเคราะห์ (ms)
+        const CONF_AUTO_SELECT = 0.90;       // >= ค่านี้ = Auto-select (ให้ผู้ใช้ยืนยันแค่ ใช่/ไม่ใช่)
+        const CONF_SUGGEST = 0.60;           // >= ค่านี้ (แต่ < AUTO) = โชว์ตัวเลือกให้แตะเลือก
+                                              // < CONF_SUGGEST = ไม่แน่ใจ ให้สแกนใหม่/พิมพ์รหัสเอง
 
         const dict = {
             th: {
@@ -190,7 +199,186 @@
         }
 
         // ==========================================
-        // แดชบอร์ด พนักงาน (Staff Panel & AI Copilot)
+        // 🌟 Live AI Scan Modal
+        // เปิดกล้องค้าง แล้วยิงเฟรมไปให้ Gemini วิเคราะห์เป็นระยะ
+        // ตัดสินใจ UI ตามระดับ Confidence:
+        //   >= CONF_AUTO_SELECT  -> Auto-select + popup ให้ยืนยัน ใช่/ไม่ใช่
+        //   >= CONF_SUGGEST      -> โชว์ 3 ตัวเลือกให้แตะเลือก (Human-in-the-loop)
+        //   < CONF_SUGGEST       -> แจ้งเตือนไม่แน่ใจ ให้สแกนใหม่/พิมพ์รหัสเอง
+        // ==========================================
+        function LiveScanModal({ onClose, onConfirm, fetchGAS }) {
+            const videoRef = useRef(null);
+            const canvasRef = useRef(null);
+            const streamRef = useRef(null);
+            const intervalRef = useRef(null);
+            const busyRef = useRef(false);
+            const pausedRef = useRef(false);
+
+            const [status, setStatus] = useState('starting'); // starting | scanning | error
+            const [lowConfMsg, setLowConfMsg] = useState('');
+            const [autoCandidate, setAutoCandidate] = useState(null); // { pred }
+            const [candidates, setCandidates] = useState(null); // array
+
+            useEffect(() => {
+                let active = true;
+                (async () => {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 480 } }
+                        });
+                        if (!active) { stream.getTracks().forEach(tr => tr.stop()); return; }
+                        streamRef.current = stream;
+                        if (videoRef.current) {
+                            videoRef.current.srcObject = stream;
+                            await videoRef.current.play();
+                        }
+                        setStatus('scanning');
+                        intervalRef.current = setInterval(captureAndAnalyze, SCAN_INTERVAL_MS);
+                    } catch (e) {
+                        setStatus('error');
+                    }
+                })();
+                return () => {
+                    active = false;
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                    if (streamRef.current) streamRef.current.getTracks().forEach(tr => tr.stop());
+                };
+                // eslint-disable-next-line
+            }, []);
+
+            const captureAndAnalyze = async () => {
+                if (busyRef.current || pausedRef.current) return;
+                const video = videoRef.current;
+                if (!video || !video.videoWidth) return;
+                busyRef.current = true;
+                try {
+                    const canvas = canvasRef.current;
+                    const w = 500;
+                    const h = Math.round(video.videoHeight * (w / video.videoWidth));
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+                    const frameBase64 = canvas.toDataURL('image/jpeg', 0.6);
+
+                    const res = await fetchGAS({ action: 'analyzeImage', imageBase64: frameBase64 });
+
+                    if (!res.success || !res.predictions || res.predictions.length === 0) return;
+
+                    const top = res.predictions[0];
+                    if (top.confidence >= CONF_AUTO_SELECT) {
+                        pausedRef.current = true;
+                        setAutoCandidate(top);
+                    } else if (top.confidence >= CONF_SUGGEST) {
+                        pausedRef.current = true;
+                        setCandidates(res.predictions);
+                    } else {
+                        setLowConfMsg('ไม่แน่ใจ กรุณาสแกนใหม่ให้ชัดขึ้น หรือพิมพ์รหัสเอง');
+                        clearTimeout(window.__lowConfTimer);
+                        window.__lowConfTimer = setTimeout(() => setLowConfMsg(''), 2200);
+                    }
+                } catch (e) {
+                    // ยิงพลาดรอบนี้ ไม่เป็นไร รอบหน้าลองใหม่
+                } finally {
+                    busyRef.current = false;
+                }
+            };
+
+            const resumeScanning = () => {
+                setAutoCandidate(null);
+                setCandidates(null);
+                pausedRef.current = false;
+            };
+
+            const confirmPick = (pred) => { onConfirm(pred); };
+
+            return (
+                <div className="fixed inset-0 z-50 bg-black flex flex-col">
+                    <div className="flex justify-between items-center p-4 bg-black/70 text-white relative z-30">
+                        <span className="font-bold gemini-gradient text-lg">✨ AI Live Scan</span>
+                        <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-9 h-9 rounded-full flex items-center justify-center transition">✕</button>
+                    </div>
+
+                    <div className="flex-1 relative overflow-hidden">
+                        <video ref={videoRef} className="w-full h-full object-cover" playsInline muted></video>
+                        <canvas ref={canvasRef} className="hidden"></canvas>
+
+                        {status === 'starting' && (
+                            <div className="absolute inset-0 flex items-center justify-center text-white gap-2">
+                                <div className="spinner border-l-white"></div> กำลังเปิดกล้อง...
+                            </div>
+                        )}
+                        {status === 'error' && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center gap-3">
+                                <p>ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตสิทธิ์กล้องในเบราว์เซอร์แล้วลองใหม่</p>
+                                <button onClick={onClose} className="bg-white/10 px-4 py-2 rounded-xl">ปิด</button>
+                            </div>
+                        )}
+                        {status === 'scanning' && !autoCandidate && !candidates && (
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-2 rounded-full flex items-center gap-2 whitespace-nowrap">
+                                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                                กำลังส่อง... เล็งกล้องไปที่สินค้าหรือป้ายราคา
+                            </div>
+                        )}
+                        {lowConfMsg && (
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-sm px-4 py-3 rounded-2xl shadow-lg max-w-[90%] text-center font-medium">
+                                ⚠️ {lowConfMsg}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* >= 90%: Auto-select ให้ยืนยัน ใช่/ไม่ใช่ */}
+                    {autoCandidate && (
+                        <div className="absolute inset-0 z-20 flex items-end justify-center bg-black/60">
+                            <div className="bg-white w-full max-w-lg rounded-t-3xl p-6 pb-8" style={{animation: 'slideUp 0.3s ease-out'}}>
+                                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4"></div>
+                                <p className="text-xs font-black text-emerald-600 uppercase mb-2 tracking-wide">
+                                    ✅ ตรงกัน {(autoCandidate.confidence * 100).toFixed(0)}%
+                                    {autoCandidate.source === 'label' ? ' (อ่านจากป้าย)' : ''}
+                                </p>
+                                <h3 className="text-2xl font-black text-slate-800 mb-1">{autoCandidate.Item}</h3>
+                                <p className="text-slate-500 mb-6">PLU: {autoCandidate.Article}</p>
+                                <p className="font-bold text-slate-700 mb-4">ใช่สินค้าชิ้นนี้ใช่ไหม?</p>
+                                <div className="flex gap-3">
+                                    <button onClick={resumeScanning} className="flex-1 bg-slate-100 text-slate-700 p-4 rounded-xl font-bold hover:bg-slate-200 transition">❌ ไม่ใช่</button>
+                                    <button onClick={() => confirmPick(autoCandidate)} className="flex-1 bg-emerald-600 text-white p-4 rounded-xl font-bold hover:bg-emerald-700 transition">✅ ใช่ ยืนยัน</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 60-90%: โชว์ตัวเลือกให้แตะเลือก (Human-in-the-loop) */}
+                    {candidates && (
+                        <div className="absolute inset-0 z-20 flex items-end justify-center bg-black/60">
+                            <div className="bg-white w-full max-w-lg rounded-t-3xl p-6 pb-8" style={{animation: 'slideUp 0.3s ease-out'}}>
+                                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4"></div>
+                                <h3 className="text-lg font-black gemini-gradient mb-1">✨ ใกล้เคียงหลายรายการ</h3>
+                                <p className="text-sm text-slate-500 mb-4">Gemini ไม่มั่นใจ 100% กรุณาแตะเลือกรายการที่ตรง</p>
+                                <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1 hide-scroll">
+                                    {candidates.map((pred, idx) => (
+                                        <div key={idx} onClick={() => confirmPick(pred)}
+                                            className="p-4 border-2 border-slate-100 rounded-2xl hover:border-purple-500 hover:bg-purple-50 cursor-pointer flex justify-between items-center active:scale-[0.98] transition">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-black">{idx + 1}</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-800">{pred.Item}</p>
+                                                    <p className="text-sm text-slate-500">PLU: {pred.Article}</p>
+                                                </div>
+                                            </div>
+                                            <span className={`text-xs font-black px-3 py-1.5 rounded-full border whitespace-nowrap ${pred.confidence > 0.75 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
+                                                {(pred.confidence * 100).toFixed(0)}%
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={resumeScanning} className="w-full mt-4 bg-slate-100 text-slate-600 p-3 rounded-xl font-bold hover:bg-slate-200 transition">ไม่ใช่ทั้งหมด สแกนใหม่</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ==========================================
+        // แดชบอร์ด พนักงาน (Staff Panel & Gemini)
         // ==========================================
         function StaffPanel({ user, t, fetchGAS, verifyMatch, compressImage }) {
             const [tasks, setTasks] = useState([]);
@@ -201,9 +389,7 @@
             const [productDetail, setProductDetail] = useState(null);
             
             const [isScannerOpen, setIsScannerOpen] = useState(false);
-            const [isAILoading, setIsAILoading] = useState(false);
-            const [aiPredictions, setAiPredictions] = useState(null);
-            const aiFileInputRef = useRef(null);
+            const [isLiveScanOpen, setIsLiveScanOpen] = useState(false);
 
             const [weight, setWeight] = useState('');
             const [imgBase64, setImgBase64] = useState('');
@@ -221,14 +407,14 @@
 
             const resetState = () => {
                 setActiveTask(null); setScanArticle(''); setProductDetail(null); setWeight(''); 
-                setImgBase64(''); setAiPredictions(null); setIsAILoading(false); setIsScannerOpen(false);
+                setImgBase64(''); setIsScannerOpen(false); setIsLiveScanOpen(false);
             };
 
             const handleLookup = async (manualArticle = scanArticle) => {
                 if(!manualArticle) return;
                 setLoading(true);
                 const res = await fetchGAS({ action: 'lookup', article: manualArticle.trim() });
-                if(res.success) { setProductDetail(res.product); setAiPredictions(null); } 
+                if(res.success) { setProductDetail(res.product); } 
                 else { alert(res.message); setProductDetail(null); }
                 setLoading(false);
             };
@@ -251,41 +437,12 @@
                 return () => { if (html5QrCode) { try { html5QrCode.stop().catch(e => console.log(e)); } catch(e) {} } };
             }, [isScannerOpen]);
 
-            const handleAICopilotScan = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                setIsAILoading(true);
-                setAiPredictions(null);
-                
-                const reader = new FileReader();
-                reader.onloadend = async () => {
-                    try {
-                        const base64 = reader.result;
-                        setImgBase64(base64); 
-                        
-                        const compressed = await compressImage(base64, 600, 0.6); 
-                        const res = await fetchGAS({ action: 'analyzeImage', imageBase64: compressed });
-                        
-                        if (res.success) { setAiPredictions(res.predictions); } 
-                        else { alert(res.message); }
-                    } catch (error) {
-                        alert("AI Connection Failed / Error processing image");
-                    } finally {
-                        setIsAILoading(false); 
-                    }
-                };
-                reader.readAsDataURL(file);
-                e.target.value = null; 
-            };
-
-            const selectAIPrediction = (prediction) => {
+            // เมื่อผู้ใช้ยืนยันตัวเลือกจาก Live AI Scan (ทั้งกรณี auto-select และกรณีเลือกจาก 3 ตัวเลือก)
+            const handleLiveScanConfirm = (prediction) => {
                 setScanArticle(prediction.Article);
                 setProductDetail({ Article: prediction.Article, Item: prediction.Item });
-                setAiPredictions(null);
+                setIsLiveScanOpen(false);
             };
-            
-            // เพิ่มฟังก์ชันปิด Popup AI
-            const closeAIPopup = () => setAiPredictions(null);
 
             const submitTask = async () => {
                 if(!weight) return alert("กรุณากรอกน้ำหนัก / Please enter weight");
@@ -339,7 +496,24 @@
                                 </div>
                             </div>
                         </div>
-                        
+
+                        {/* 🌟 ปุ่มหลัก: เปิดกล้อง AI สแกนสด (แทนที่การถ่ายรูปแล้วรอผล) */}
+                        <button 
+                            onClick={() => setIsLiveScanOpen(true)}
+                            className="w-full py-5 rounded-2xl font-black text-white gemini-glow bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:opacity-90 transition flex flex-col items-center justify-center gap-1 shadow-md mb-6"
+                        >
+                            <span className="flex items-center gap-2 text-lg">📷✨ เปิดกล้อง AI สแกนสินค้า</span>
+                            <span className="text-xs font-medium opacity-90">ส่องกล้องไปที่สินค้า ไม่ต้องกดถ่าย ระบบวิเคราะห์อัตโนมัติ</span>
+                        </button>
+
+                        {isLiveScanOpen && (
+                            <LiveScanModal
+                                fetchGAS={fetchGAS}
+                                onClose={() => setIsLiveScanOpen(false)}
+                                onConfirm={handleLiveScanConfirm}
+                            />
+                        )}
+
                         <label className="block text-sm font-bold text-slate-700 mb-2">{t.scanToVerify}</label>
                         <div className="flex gap-2 mb-4">
                             <input type="text" placeholder="PLU Code" className="flex-1 p-3 border-2 rounded-xl outline-none focus:border-blue-500 text-lg bg-slate-50 focus:bg-white transition"
@@ -355,71 +529,13 @@
                         </div>
 
                         {isScannerOpen && (
-                            <div className="w-full mb-4 animate-[fadeIn_0.3s_ease-in-out]">
+                            <div className="w-full mb-4" style={{animation: 'fadeIn 0.3s ease-in-out'}}>
                                 <div id="reader" className="w-full rounded-xl overflow-hidden shadow bg-black min-h-[250px]"></div>
                                 <button onClick={() => setIsScannerOpen(false)} className="w-full mt-2 bg-red-50 text-red-600 p-3 rounded-xl font-bold hover:bg-red-100 transition border border-red-200">
                                     ❌ Close Scanner
                                 </button>
                             </div>
                         )}
-
-                        <div className="mb-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-bold text-slate-500 uppercase">AI COPILOT</span>
-                            </div>
-                            <input type="file" accept="image/*" capture="environment" onChange={handleAICopilotScan} ref={aiFileInputRef} className="hidden" />
-                            <button 
-                                onClick={() => aiFileInputRef.current.click()}
-                                disabled={isAILoading}
-                                className={`w-full py-4 rounded-xl font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition flex justify-center items-center gap-2 ${isAILoading ? 'opacity-70' : ''}`}
-                            >
-                                {isAILoading ? (
-                                    <><div className="spinner border-l-blue-700 border-2"></div> Processing Image...</>
-                                ) : (
-                                    <><span>🤖</span> Auto-Detect with AI Copilot</>
-                                )}
-                            </button>
-                        </div>
-
-                        {/* 🌟 Google Lens Style Bottom Sheet Popup 🌟 */}
-                        {aiPredictions && (
-                            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm transition-opacity animate-[fadeIn_0.3s_ease-in-out]">
-                                <div className="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl p-6 pb-10 transform transition-transform animate-[slideUp_0.4s_ease-out]">
-                                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                                            <span className="text-2xl">✨</span> AI วิเคราะห์สินค้า
-                                        </h3>
-                                        <button onClick={closeAIPopup} className="text-slate-400 hover:text-red-500 bg-slate-100 p-2 rounded-full transition">
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                        </button>
-                                    </div>
-                                    <p className="text-sm text-slate-500 mb-4">พบสินค้าที่มีลักษณะใกล้เคียง กรุณาเลือกรายการที่ถูกต้อง</p>
-                                    
-                                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2 hide-scroll">
-                                        {aiPredictions.map((pred, idx) => (
-                                            <div key={idx} onClick={() => selectAIPrediction(pred)} className="p-4 border-2 border-slate-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all flex justify-between items-center group active:scale-[0.98]">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-black group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                                        {idx + 1}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-slate-800 text-lg group-hover:text-blue-800">{pred.Item}</p>
-                                                        <p className="text-sm text-slate-500 font-medium">PLU: {pred.Article}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-col items-end">
-                                                    <span className={`text-xs font-black px-3 py-1.5 rounded-full shadow-sm border ${pred.confidence > 0.9 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
-                                                        แม่นยำ {(pred.confidence * 100).toFixed(0)}%
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        {/* 🌟 End of Google Lens Style Popup 🌟 */}
 
                         {productDetail && (
                             <div className={`p-4 rounded-xl mb-6 border ${isMismatch ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
@@ -430,7 +546,7 @@
                         )}
 
                         {productDetail && (
-                            <div className="animate-[fadeIn_0.3s_ease-in-out]">
+                            <div style={{animation: 'fadeIn 0.3s ease-in-out'}}>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">Weight Data (kg)</label>
                                 <input type="number" step="0.01" placeholder={t.weight} className="w-full p-4 border-2 rounded-xl text-xl mb-4 focus:border-blue-500 outline-none bg-slate-50 focus:bg-white transition text-center font-bold"
                                     value={weight} onChange={e => setWeight(e.target.value)} />
